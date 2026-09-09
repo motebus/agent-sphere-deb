@@ -18,11 +18,46 @@ for arg in "$@"; do
     esac
 done
 [[ $(id -u) == 0 ]] || fail 'Run this installer as root (for example, with sudo).'
-for command in apt-get curl sha256sum dpkg dpkg-deb dpkg-query mktemp chmod realpath; do
+for command in apt-get curl sha256sum dpkg dpkg-deb dpkg-query mktemp chmod realpath stat; do
     command -v "$command" >/dev/null 2>&1 || fail "$command is required. Package installation was not started."
 done
 [[ $(dpkg --print-architecture) == amd64 ]] || fail 'This reviewed release requires amd64.'
 export LC_ALL=C
+
+# Retention is only valid for an existing locked conffile ownership record.
+# Classify before downloads or APT; a package-name match alone is insufficient.
+legacy_retention=false
+legacy_record=''
+if legacy_record=$(dpkg-query -W -f='${db:Status-Status}\n${Version}\n${Conffiles}\n' mote-chatd 2>/dev/null); then
+    mapfile -t legacy_lines <<< "$legacy_record"
+    [[ ${#legacy_lines[@]} -ge 2 ]] || fail 'Cannot classify legacy mote-chatd ownership. No download or package change was started.'
+    case "${legacy_lines[0]}" in
+        installed|config-files) ;;
+        *) fail 'Unsupported legacy mote-chatd DPKG state. Repair it before using this installer; no download or package change was started.' ;;
+    esac
+    [[ -n ${legacy_lines[1]} ]] && dpkg --compare-versions "${legacy_lines[1]}" le 2.0.0-6 \
+        || fail 'Unsupported legacy mote-chatd version. No download or package change was started.'
+    ownership_count=0
+    for legacy_line in "${legacy_lines[@]:2}"; do
+        read -r record_path record_digest record_flag record_extra <<< "$legacy_line"
+        if [[ $record_path == /etc/mote/mote-chatd/mote-chatd-mchat.env ]]; then
+            [[ $record_digest =~ ^[0-9a-f]{32}$ && -z $record_extra && \
+               ( -z $record_flag || $record_flag == obsolete ) ]] \
+                || fail 'Malformed protected mote-chatd ownership record. No download or package change was started.'
+            ownership_count=$((ownership_count + 1))
+        fi
+    done
+    [[ $ownership_count == 1 ]] \
+        || fail 'Existing mote-chatd does not have the exact protected ownership required for retention. This state needs a separately reviewed migration; no download or package change was started.'
+    [[ $(stat -c '%F' -- /etc/mote/mote-chatd/mote-chatd-mchat.env 2>/dev/null) == 'regular file' ]] \
+        || fail 'The protected legacy topology is missing or not a regular file. Owner repair is required; no download or package change was started.'
+    legacy_retention=true
+else
+    query_status=$?
+    [[ $query_status == 1 && -z $legacy_record ]] \
+        || fail 'Cannot inspect legacy mote-chatd ownership. No download or package change was started.'
+fi
+
 umask 077
 temporary=$(mktemp -d /var/tmp/agent-sphere-apps.XXXXXXXX)
 trap 'rm -rf -- "$temporary"' EXIT
@@ -38,10 +73,10 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.1.0-5 agent-apps=0.1.0-2 "$obsidian")
+packages=(agent-sphere=0.1.0-6 agent-apps=0.1.0-2 "$obsidian")
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove the mote-chatd record.
-if dpkg-query -W -f='${db:Status-Abbrev}' mote-chatd >/dev/null 2>&1; then
+if $legacy_retention; then
     packages+=(mote-chatd=2.0.0-6)
 fi
 
@@ -62,7 +97,7 @@ $config_end || fail 'incomplete APT action protocol'
 declare -A removed=() installed=() configured=()
 declare -A replacement=([mote-sync]=mote-vault-sync [mote-syncd]=mote-vault-syncd [cx-node]=cx-agent [model-node]=model-llm)
 declare -A reviewed_old=([mote-sync]=1.1.0-2 [mote-syncd]=1.1.0-2 [cx-node]=0.3.4-1~local20260909 [model-node]=0.1.0-2)
-declare -A floor=([agent-sphere]=0.1.0-5 [agent-apps]=0.1.0-2 [moted]=3.6.0-2 [medge]=3.0.0-2 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.0.0-2 [cx-agent]=0.3.4-2 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
+declare -A floor=([agent-sphere]=0.1.0-6 [agent-apps]=0.1.0-2 [moted]=3.6.0-2 [medge]=3.0.0-2 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.0.0-2 [cx-agent]=0.3.4-2 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'

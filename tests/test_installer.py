@@ -22,7 +22,7 @@ class InstallerTests(unittest.TestCase):
         self.log = self.root / "apt-calls.jsonl"
         self.env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ['PATH'],
                         APT_TEST_LOG=str(self.log), TMPDIR=str(self.root))
-        for key in ('APT_TEST_FAIL', 'APT_TEST_UID', 'APT_TEST_PLAN', 'APT_TEST_ACTIONS', 'APT_TEST_OBSIDIAN', 'APT_TEST_CHATD'):
+        for key in ('APT_TEST_FAIL', 'APT_TEST_UID', 'APT_TEST_PLAN', 'APT_TEST_ACTIONS', 'APT_TEST_OBSIDIAN', 'APT_TEST_CHATD', 'APT_TEST_CHATD_FILE'):
             self.env.pop(key, None)
         self.write_fake("id", """
 import os, sys
@@ -32,6 +32,7 @@ print(os.environ.get('APT_TEST_UID', '0'))
         self.write_fake("curl", """
 import os, pathlib, sys
 args=sys.argv[1:]
+pathlib.Path(os.environ['APT_TEST_LOG'] + '.download').touch()
 pathlib.Path(args[args.index('--output')+1]).write_bytes(b'fixture-official-deb')
 """)
         self.write_fake("sha256sum", """
@@ -46,7 +47,15 @@ print('unexpected' if os.environ.get('APT_TEST_OBSIDIAN') == 'bad-control' else 
 """)
         self.write_fake("dpkg-query", """
 import os, sys
-sys.exit(0 if os.environ.get('APT_TEST_CHATD') == 'installed' else 1)
+value=os.environ.get('APT_TEST_CHATD', '')
+if value == 'query-error':sys.exit(2)
+if not value:sys.exit(1)
+if value == 'installed':value='installed\\n2.0.0-4\\n /etc/mote/mote-chatd/mote-chatd-mchat.env ' + 'a'*32 + ' obsolete'
+print(value)
+""")
+        self.write_fake("stat", """
+import os
+print(os.environ.get('APT_TEST_CHATD_FILE', 'regular file'))
 """)
         self.write_fake("apt-get", """
 import json, os, subprocess, sys
@@ -84,7 +93,7 @@ if stage == 'install':
         result = self.run_installer()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:4], ['--simulate','install','agent-sphere=0.1.0-5','agent-apps=0.1.0-2'])
+        self.assertEqual(self.calls()[1][:4], ['--simulate','install','agent-sphere=0.1.0-6','agent-apps=0.1.0-2'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][-4:], ['install', *self.calls()[1][2:]])
         self.assertNotIn('--yes', self.calls()[-1])
@@ -167,6 +176,30 @@ if stage == 'install':
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertIn('mote-chatd=2.0.0-6',self.calls()[1])
         self.assertIn('mote-chatd=2.0.0-6',self.calls()[-1])
+
+    def test_unsupported_legacy_records_stop_before_download_or_apt(self):
+        locked=' /etc/mote/mote-chatd/mote-chatd-mchat.env ' + 'a'*32 + ' obsolete'
+        for record in ('query-error', 'installed\\n2.0.0-4', 'config-files\\n2.0.0-4',
+                       'half-configured\\n2.0.0-4\\n'+locked,
+                       'unpacked\\n2.0.0-6\\n'+locked,
+                       'installed\\n2.0.0-7\\n'+locked,
+                       'installed\\n2.0.0-4\\n'+locked+'\\n'+locked,
+                       'installed\\n2.0.0-4\\n'+locked+' unexpected'):
+            with self.subTest(record=record):
+                self.env['APT_TEST_CHATD']=record.replace('\\n', '\n')
+                result=self.run_installer('--yes')
+                self.assertNotEqual(result.returncode,0,result.stderr)
+                self.assertEqual(self.calls(),[])
+                self.assertFalse(Path(str(self.log)+'.download').exists())
+
+    def test_missing_or_symlinked_protected_file_stops_before_download(self):
+        self.env['APT_TEST_CHATD']='installed'
+        for kind in ('', 'symbolic link', 'directory'):
+            with self.subTest(kind=kind):
+                self.env['APT_TEST_CHATD_FILE']=kind
+                self.assertNotEqual(self.run_installer('--yes').returncode,0)
+                self.assertEqual(self.calls(),[])
+                self.assertFalse(Path(str(self.log)+'.download').exists())
 
     def test_invalid_official_artifact_stops_before_apt(self):
         for reason in ('bad-digest','bad-control'):

@@ -1,0 +1,9 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: agent-sphere
+Source: https://github.com/motebus/agent-sphere-deb
+
+Files: *
+Copyright: 2026 MoteBus
+License: All-rights-reserved
+ Public availability of this packaging source does not grant an additional
+ license. Component packages retain their respective copyright and licenses.

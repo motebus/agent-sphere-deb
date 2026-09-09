@@ -1,0 +1,56 @@
+{
+  "schema": "agent-sphere-component-baseline/v1",
+  "existing_release": "https://github.com/motebus/download/releases/tag/medge-v5.9.0-8",
+  "transport_candidate_tag": "transport-candidate-v2.0.0-5",
+  "packages": [
+    {
+      "name": "sphered",
+      "version": "4.1.0-2",
+      "architecture": "amd64",
+      "asset": "sphered_4.1.0-2_amd64.deb",
+      "sha256": "38667a250b2108a9d93f0743a81892875043ec32b09a61206e33deabe9deeb9a",
+      "source_commit": "31ad2c10db964ebeedde169edf59a169eeb1f941"
+    },
+    {
+      "name": "moted",
+      "version": "3.5.0-8",
+      "architecture": "amd64",
+      "asset": "moted_3.5.0-8_amd64.deb",
+      "sha256": "2ef9885718fa85b652770da639a0e4072e680f2d41459d658e87c1278f8a8aab",
+      "source_commit": "d4887bf512e7e9301e2c2f5115019c9c9a8d8c96"
+    },
+    {
+      "name": "mote-proxy",
+      "version": "2.0.0-5",
+      "architecture": "amd64",
+      "asset": "mote-proxy_2.0.0-5_amd64.deb",
+      "sha256": "469f8a794a975b704f3886bf0d149cf81289b4c56145c9f45a781bbf4d8a3548",
+      "source_commit": "b2c7d5415d238a6dfca5f7f2955ebe756eaa546e"
+    },
+    {
+      "name": "mote-transportd",
+      "version": "2.0.0-5",
+      "architecture": "amd64",
+      "asset": "mote-transportd_2.0.0-5_amd64.deb",
+      "sha256": null,
+      "source_commit": null,
+      "status": "awaiting-main-ci"
+    },
+    {
+      "name": "medge",
+      "version": "2.0.0-2",
+      "architecture": "amd64",
+      "asset": "medge_2.0.0-2_amd64.deb",
+      "sha256": "5f55b66aa0747e48a35b21f7448b4600fd62ec6833c9b3c045ba69cd61ecaae8",
+      "source_commit": "f595fd2bf13ecbbf8cbbcac1d6f622fc4e71e913"
+    },
+    {
+      "name": "mlink",
+      "version": "2.0.0-3",
+      "architecture": "amd64",
+      "asset": "mlink_2.0.0-3_amd64.deb",
+      "sha256": "80a225319fc20d11ead9993ce7f508f447be2abd4d87e820cbd43d3dd20b0c33",
+      "source_commit": "d41363de8a94614b2210b2b3d20607b0ad5a7980"
+    }
+  ]
+}

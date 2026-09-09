@@ -1,0 +1,89 @@
+name: Validate and release Agent Sphere
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-sphere-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build and verify package boundary
+        run: |
+          python3 scripts/package.py build
+          python3 -m unittest discover -s tests -v
+      - name: Verify signed APT dependency resolution
+        run: bash scripts/check-apt-plan.sh
+      - name: Bind release artifact to source and build
+        run: |
+          python3 scripts/package.py manifest
+          (cd dist && sha256sum --check SHA256SUMS)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: agent-sphere-release
+          path: dist/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: dependency-plan
+          path: build/apt-plan.txt
+          if-no-files-found: ignore
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: agent-sphere-release
+          path: dist
+      - name: Publish the exact verified artifact from main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)" = "$GITHUB_SHA"
+          version="$(sed -n 's/^Version: //p' packaging/control)"
+          tag="v${version}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo 'Existing releases are immutable.' >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
+            echo 'Existing tags are immutable.' >&2
+            exit 1
+          fi
+          (cd dist && sha256sum --check SHA256SUMS)
+          python3 scripts/package.py verify "dist/agent-sphere_${version}_all.deb"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          record = json.loads(Path('dist/release-manifest.json').read_text())
+          assert record['source_commit'] == os.environ['GITHUB_SHA']
+          assert record['source_ref'] == 'refs/heads/main'
+          assert record['build_run'].endswith('/' + os.environ['GITHUB_RUN_ID'])
+          assert record['sphere_ready_verified'] is False
+          PY
+          gh release create "$tag" --target "$GITHUB_SHA" --prerelease \
+            --title "Agent Sphere $version" --notes-file RELEASE_NOTES.md \
+            "dist/agent-sphere_${version}_all.deb" dist/SHA256SUMS dist/release-manifest.json

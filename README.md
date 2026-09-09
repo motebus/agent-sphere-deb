@@ -32,7 +32,7 @@ including Docker in the current MEdge package, remain component-owned.
 
 AGOS, SS-WebOS, MDesk, Jujue, Codex, MCP application capabilities, UltraOne
 Comm/Ops, and Ultravisor are outside this package. The second top-level
-installation package, `agent-app`, is designed to compose `agos`, `ss-webos`,
+installation package, `agent-apps`, is designed to compose `agos`, `ss-webos`,
 `mdesk`, `mote-bridge-mcp`, and `cx-node`, with optional separate `model-node`.
 Its compatible AGOS implementation is pending, so this initial release does
 not claim a complete two-package Agent Computer installation. Agent App owns application
@@ -51,7 +51,7 @@ sudo apt-get install agent-sphere
 ```
 
 APT then selects all six runtime dependencies automatically. The complete
-`apt install agent-sphere agent-app` product entry remains pending the
+`apt install agent-sphere agent-apps` product entry remains pending the
 compatible AGOS/App release. Before the additive APT publication, the
 following local-file procedure is available for packaging evaluation. Five existing components must be available from the
 configured, signature-verified MoteBus component APT repository described in
@@ -60,21 +60,21 @@ The initial component baseline is published for Ubuntu amd64; `Architecture:
 all` describes this documentation-only metapackage, not availability of the
 components on every architecture or Linux distribution.
 
-Download `agent-sphere_0.1.0-1_all.deb`,
-`mote-transportd_2.0.0-5_amd64.deb`, `agent-sphere-app.sh`, `SHA256SUMS`, and `release-manifest.json` from this repository's GitHub release, then run in the
+Download `agent-sphere_0.1.0-2_all.deb`,
+`mote-transportd_2.0.0-5_amd64.deb`, `agent-sphere-apps.sh`, `SHA256SUMS`, and `release-manifest.json` from this repository's GitHub release, then run in the
 download directory:
 
 ```sh
 sha256sum --check SHA256SUMS
 sudo apt-get update
-sudo apt-get install --no-install-recommends --no-remove ./agent-sphere_0.1.0-1_all.deb ./mote-transportd_2.0.0-5_amd64.deb
+sudo apt-get install --no-install-recommends --no-remove ./agent-sphere_0.1.0-2_all.deb ./mote-transportd_2.0.0-5_amd64.deb
 ```
 
 The checksum identifies the release bytes; it is not an independent signature.
 Use the official HTTPS release and its recorded GitHub Actions build provenance.
 The metapackage embeds no component binaries. APT resolves the local renamed
 component plus the five existing packages from their configured repositories.
-The separate `agent-sphere-app.sh` installer uses native APT and is not
+The separate `agent-sphere-apps.sh` installer uses native APT and is not
 installed by the metapackage. There is no new updater or runtime wrapper.
 
 `mote-transportd` is the renamed D/MSG package. Its existing `mote-chatd`
@@ -92,25 +92,25 @@ consider automatically installed packages; review that plan before running it.
 
 ## Install Sphere and App together
 
-`agent-sphere-app.sh` is the single installer entry for the two top-level
+`agent-sphere-apps.sh` is the single installer entry for the two top-level
 packages. With the official signed MoteBus APT repository configured, download
 the release assets, verify `SHA256SUMS`, then run:
 
 ```sh
-sudo bash ./agent-sphere-app.sh
+sudo bash ./agent-sphere-apps.sh
 ```
 
 It updates APT metadata, checks a no-removal installation plan for both
-`agent-sphere` and `agent-app`, then installs both in one APT invocation.
+`agent-sphere` and `agent-apps`, then installs both in one APT invocation.
 APT asks for confirmation; pass `--yes` explicitly for unattended installation.
 The script does not configure repositories, provision identities, or replace
 component service management. It cannot install both packages until the
-compatible `agent-app` release is available; it fails before package installation
+compatible `agent-apps` release is available; it fails before package installation
 if either package or its dependency graph cannot be resolved.
 
 ## Status and known implementation gaps
 
-Version 0.1.0-1 is an initial composition prerelease, not Agent Sphere v1.0
+Version 0.1.0-2 is an initial composition prerelease, not Agent Sphere v1.0
 runtime acceptance. Successful APT configuration means the packages are
 installed; it does not mean the host is Sphere Ready.
 
@@ -143,7 +143,7 @@ metapackage. Run from the repository root:
 
 ```sh
 python3 scripts/package.py build
-python3 scripts/package.py verify dist/agent-sphere_0.1.0-1_all.deb
+python3 scripts/package.py verify dist/agent-sphere_0.1.0-2_all.deb
 python3 -m unittest discover -s tests
 ```
 

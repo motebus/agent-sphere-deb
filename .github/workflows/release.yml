@@ -101,7 +101,7 @@ jobs:
           (cd dist && sha256sum --check SHA256SUMS)
           python3 scripts/package.py verify "dist/agent-sphere_${version}_all.deb"
           python3 scripts/package.py transport
-          cmp agent-sphere-app.sh dist/agent-sphere-app.sh
+          cmp agent-sphere-apps.sh dist/agent-sphere-apps.sh
           python3 - <<'PY'
           import json, os
           from pathlib import Path
@@ -114,4 +114,4 @@ jobs:
           gh release create "$tag" --target "$GITHUB_SHA" --prerelease \
             --title "Agent Sphere $version" --notes-file RELEASE_NOTES.md \
             "dist/agent-sphere_${version}_all.deb" dist/mote-transportd_2.0.0-5_amd64.deb \
-            dist/agent-sphere-app.sh dist/SHA256SUMS dist/release-manifest.json
+            dist/agent-sphere-apps.sh dist/SHA256SUMS dist/release-manifest.json

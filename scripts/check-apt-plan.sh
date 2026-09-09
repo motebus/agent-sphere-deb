@@ -32,7 +32,7 @@ import re
 text = Path('build/apt-plan.txt').read_text()
 planned = set(re.findall(r'^Inst ([a-z0-9+.-]+)', text, re.M))
 required = {'agent-sphere', 'sphered', 'moted', 'mote-proxy', 'mote-transportd', 'medge', 'mlink'}
-excluded = {'agos', 'agent-app', 'mdesk', 'ss-webos', 'jujue', 'codex', 'codex-cli',
+excluded = {'agos', 'agent-app', 'agent-apps', 'mdesk', 'ss-webos', 'jujue', 'codex', 'codex-cli',
             'codex-mesh', 'mcp-run', 'mote-bridge-mcp', 'cx-node', 'uchat', 'qbix', 'mote-chatd'}
 assert required <= planned, f'Missing components: {required - planned}'
 assert not excluded & planned, f'Unexpected application dependency: {excluded & planned}'

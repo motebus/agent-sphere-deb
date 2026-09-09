@@ -9,7 +9,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-INSTALLER = ROOT / "agent-sphere-app.sh"
+INSTALLER = ROOT / "agent-sphere-apps.sh"
 BASH = shutil.which("bash")
 
 
@@ -65,15 +65,15 @@ sys.exit(42 if os.environ.get('APT_TEST_FAIL') == stage else 0)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.calls(), [
             ["update"],
-            ["--simulate", "--no-remove", "install", "agent-sphere", "agent-app"],
-            ["--no-remove", "install", "agent-sphere", "agent-app"],
+            ["--simulate", "--no-remove", "install", "agent-sphere", "agent-apps"],
+            ["--no-remove", "install", "agent-sphere", "agent-apps"],
         ])
 
     def test_yes_requires_explicit_flag(self):
         result = self.run_installer("--yes")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.calls()[-1],
-                         ["--no-remove", "--yes", "install", "agent-sphere", "agent-app"])
+                         ["--no-remove", "--yes", "install", "agent-sphere", "agent-apps"])
         self.assertNotIn("--yes", self.calls()[1])
 
     def test_failed_preflight_never_starts_package_installation(self):
@@ -115,7 +115,7 @@ sys.exit(42 if os.environ.get('APT_TEST_FAIL') == stage else 0)
         self.env["APT_TEST_UID"] = "1000"
         result = self.run_installer("--help")
         self.assertEqual(result.returncode, 0)
-        self.assertIn("agent-sphere and agent-app", result.stdout)
+        self.assertIn("agent-sphere and agent-apps", result.stdout)
         self.assertEqual(self.calls(), [])
 
     def test_missing_apt_is_rejected(self):

@@ -143,7 +143,7 @@ def manifest(out):
     path = out / ("agent-sphere_" + control()["Version"] + "_all.deb")
     verify(path)
     component = transport(out)
-    installer = out / "agent-sphere-app.sh"
+    installer = out / "agent-sphere-apps.sh"
     shutil.copyfile(ROOT / installer.name, installer)
     installer.chmod(0o755)
     commit = subprocess.check_output(["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True).strip()

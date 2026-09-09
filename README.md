@@ -70,6 +70,13 @@ installation and downgrades. On hosts with legacy `mote-chatd` ownership, a
 separate documentation-only record preserves the locked configuration; the
 single runtime belongs to `mote-transportd`. The old record is not removed.
 
+Before any download or APT operation, the installer classifies the real DPKG
+record and exact protected conffile ownership. Only configured or residual
+legacy ownership with a regular retained file enters that retention path.
+An old package record without protected ownership, a partial DPKG state, or
+a missing/symlinked protected file is refused early and needs a separately
+reviewed migration or owner repair. Fresh hosts need no retention package.
+
 Removing a composition package removes its documentation. Component removal
 and user-data preservation need the matching signed uninstall contract. The
 legacy full-bundle uninstaller cannot remove this composition and must stop
@@ -78,7 +85,7 @@ before mutation. Do not purge a protected configuration ownership record.
 ## Acceptance
 
 Package installation and runtime readiness are separate checks. Version
-0.1.0-5 composes the initial native profile; it does not certify Sphere Ready.
+0.1.0-6 composes the initial native profile; it does not certify Sphere Ready.
 MBox policy and individual I/O endpoints require explicit owner admission.
 MDrive initially supports bounded local objects, not advanced XS operations,
 remote MDrive publication or automatic access to a real Obsidian Vault.

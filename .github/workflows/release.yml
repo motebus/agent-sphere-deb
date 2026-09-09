@@ -14,8 +14,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  pull-request-validation:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build and verify package and installer
+        run: |
+          python3 scripts/package.py build
+          python3 -m unittest discover -s tests -v
+
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: release
+    # GitHub restricts draft release downloads to callers with push access.
+    # This token is exposed only to the download step on protected main.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

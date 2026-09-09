@@ -5,10 +5,23 @@ dependencies: `sphered`, `moted`, `mote-proxy`, `mote-transportd`, `medge`, and 
 It contains documentation only. Components retain their own services,
 configuration, state, and release lifecycles.
 
-Download all three release assets and verify `SHA256SUMS`. With the signed
+Download all five release assets and verify `SHA256SUMS`. With the signed
 MoteBus component APT repository configured, install the local DEB with
-`sudo apt-get install --no-install-recommends --no-remove ./agent-sphere_0.1.0-1_all.deb`.
-This repository does not yet publish an APT index for bare `apt install agent-sphere`.
+`sudo apt-get install --no-install-recommends --no-remove ./agent-sphere_0.1.0-1_all.deb ./mote-transportd_2.0.0-5_amd64.deb`.
+The renamed D/MSG component is included with `mote-transportd.service`. Its
+executable, protocol, configuration and journal are preserved; the distinct
+unit protects startup from a later purge of the old package. Hosts with the old physical `mote-chatd` package require a
+reviewed replacement plan; the fresh-install no-removal command will stop.
+Signed APT publication is a separate protected step in the MoteBus download
+repository. After it succeeds, `apt install agent-sphere` resolves all six
+components automatically. `agent-app` remains pending compatible AGOS.
+
+The included `agent-sphere-app.sh` installer runs native APT for
+`agent-sphere` and `agent-app` together. Run `sudo bash ./agent-sphere-app.sh`
+with the signed repository configured. It checks both packages before package
+installation, preserves APT confirmation by default, and supports explicit
+`--yes`. Until compatible Agent App is published, its preflight reports the
+missing dependency instead of installing only Sphere.
 
 Validation covers package contents and metadata, identical local rebuilds,
 negative package-boundary tests, and APT dependency simulation on Ubuntu 24.04

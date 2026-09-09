@@ -32,9 +32,8 @@
       "version": "2.0.0-5",
       "architecture": "amd64",
       "asset": "mote-transportd_2.0.0-5_amd64.deb",
-      "sha256": null,
-      "source_commit": null,
-      "status": "awaiting-main-ci"
+      "sha256": "085a607bdc212adf890ad42de06ddc1f7a70d25dab334c755ec956e382e32923",
+      "source_commit": "aa4f1758c6541d0f52b4e562fe3ed32a6b6de591"
     },
     {
       "name": "medge",

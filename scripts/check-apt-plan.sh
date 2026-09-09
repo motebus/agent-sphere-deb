@@ -23,7 +23,8 @@ sudo install -m 0644 build/mote-components.sources /etc/apt/sources.list.d/mote-
 sudo apt-get update
 version="$(sed -n 's/^Version: //p' packaging/control)"
 apt-get --simulate --no-install-recommends --no-remove install \
-  "./dist/agent-sphere_${version}_all.deb" > build/apt-plan.txt
+  "./dist/agent-sphere_${version}_all.deb" \
+  ./dist/mote-transportd_2.0.0-5_amd64.deb > build/apt-plan.txt
 cat build/apt-plan.txt
 python3 - <<'PY'
 from pathlib import Path
@@ -32,7 +33,7 @@ text = Path('build/apt-plan.txt').read_text()
 planned = set(re.findall(r'^Inst ([a-z0-9+.-]+)', text, re.M))
 required = {'agent-sphere', 'sphered', 'moted', 'mote-proxy', 'mote-transportd', 'medge', 'mlink'}
 excluded = {'agos', 'agent-app', 'mdesk', 'ss-webos', 'jujue', 'codex', 'codex-cli',
-            'codex-mesh', 'mcp-run', 'mote-bridge-mcp', 'cx-node', 'uchat', 'qbix'}
+            'codex-mesh', 'mcp-run', 'mote-bridge-mcp', 'cx-node', 'uchat', 'qbix', 'mote-chatd'}
 assert required <= planned, f'Missing components: {required - planned}'
 assert not excluded & planned, f'Unexpected application dependency: {excluded & planned}'
 assert not re.search(r'^Remv ', text, re.M), 'Removal is outside composition scope'

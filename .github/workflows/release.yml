@@ -24,6 +24,13 @@ jobs:
         run: |
           python3 scripts/package.py build
           python3 -m unittest discover -s tests -v
+      - name: Fetch reviewed transport package from draft staging
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download transport-candidate-v2.0.0-5 --repo "$GITHUB_REPOSITORY" \
+            --pattern mote-transportd_2.0.0-5_amd64.deb --dir dist
+          python3 scripts/package.py transport
       - name: Verify signed APT dependency resolution
         run: bash scripts/check-apt-plan.sh
       - name: Bind release artifact to source and build
@@ -75,6 +82,8 @@ jobs:
           fi
           (cd dist && sha256sum --check SHA256SUMS)
           python3 scripts/package.py verify "dist/agent-sphere_${version}_all.deb"
+          python3 scripts/package.py transport
+          cmp agent-sphere-app.sh dist/agent-sphere-app.sh
           python3 - <<'PY'
           import json, os
           from pathlib import Path
@@ -86,4 +95,5 @@ jobs:
           PY
           gh release create "$tag" --target "$GITHUB_SHA" --prerelease \
             --title "Agent Sphere $version" --notes-file RELEASE_NOTES.md \
-            "dist/agent-sphere_${version}_all.deb" dist/SHA256SUMS dist/release-manifest.json
+            "dist/agent-sphere_${version}_all.deb" dist/mote-transportd_2.0.0-5_amd64.deb \
+            dist/agent-sphere-app.sh dist/SHA256SUMS dist/release-manifest.json

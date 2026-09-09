@@ -118,53 +118,33 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def transport(out):
-    baseline = json.loads((ROOT / "component-baseline.json").read_text())
-    record = next(p for p in baseline["packages"] if p["name"] == "mote-transportd")
-    if not re.fullmatch(r"[0-9a-f]{64}", record.get("sha256") or ""):
-        raise ValueError("renamed transport package is awaiting reviewed main-CI artifact")
-    if not re.fullmatch(r"[0-9a-f]{40}", record.get("source_commit") or ""):
-        raise ValueError("transport source commit is missing")
-    if Path(record["asset"]).name != record["asset"]:
-        raise ValueError("invalid transport asset name")
-    path = out / record["asset"]
-    if digest(path) != record["sha256"]:
-        raise ValueError("transport artifact does not match admitted SHA-256")
-    with archive(path, "--ctrl-tarfile") as arc:
-        item = next(m for m in arc if m.name.removeprefix("./") == "control")
-        meta = fields(arc.extractfile(item).read().decode())
-    for field, key in [("Package", "name"), ("Version", "version"), ("Architecture", "architecture")]:
-        if meta[field] != record[key]:
-            raise ValueError("transport package metadata mismatch: " + field)
-    return path
-
-
 def manifest(out):
     path = out / ("agent-sphere_" + control()["Version"] + "_all.deb")
     verify(path)
-    component = transport(out)
     installer = out / "agent-sphere-apps.sh"
     shutil.copyfile(ROOT / installer.name, installer)
     installer.chmod(0o755)
+    if subprocess.check_output(["git", "-C", str(ROOT), "status", "--porcelain"], text=True).strip():
+        raise ValueError("manifest requires clean committed source")
     commit = subprocess.check_output(["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True).strip()
-    data = {"schema": "agent-sphere-release/v1", "package": "agent-sphere",
+    data = {"schema": "agent-sphere-release/v2", "package": "agent-sphere",
             "version": control()["Version"], "architecture": "all",
             "status": "composition-prerelease", "sphere_ready_verified": False,
             "source": "https://github.com/motebus/agent-sphere-deb", "source_commit": commit,
-            "source_ref": "refs/heads/main", "asset": path.name, "sha256": digest(path),
-            "assets": [{"name": p.name, "sha256": digest(p)} for p in [path, component, installer]],
+            "source_ref": os.environ.get("GITHUB_REF", "local"), "asset": path.name, "sha256": digest(path),
+            "assets": [{"name": p.name, "sha256": digest(p)} for p in [path, installer]],
             "build_run": os.environ.get("GITHUB_SERVER_URL", "https://github.com") + "/" +
             os.environ.get("GITHUB_REPOSITORY", "motebus/agent-sphere-deb") + "/actions/runs/" +
             os.environ.get("GITHUB_RUN_ID", "local"),
             "component_baseline": json.loads((ROOT / "component-baseline.json").read_text())}
     record = out / "release-manifest.json"
     record.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
-    (out / "SHA256SUMS").write_text("".join(digest(p) + "  " + p.name + "\n" for p in [path, component, installer, record]))
+    (out / "SHA256SUMS").write_text("".join(digest(p) + "  " + p.name + "\n" for p in [path, installer, record]))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["build", "verify", "transport", "manifest"])
+    parser.add_argument("action", choices=["build", "verify", "manifest"])
     parser.add_argument("path", nargs="?", type=Path, default=ROOT / "dist")
     args = parser.parse_args()
     if args.action == "build":
@@ -172,7 +152,5 @@ if __name__ == "__main__":
     elif args.action == "verify":
         verify(args.path.resolve())
         print("Package boundary audit passed")
-    elif args.action == "transport":
-        print(transport(args.path.resolve()))
     else:
         manifest(args.path.resolve())

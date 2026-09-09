@@ -4,157 +4,101 @@ Agent Sphere is the system substrate that turns a Linux host into an
 UltraOne-connected Agent Computer.
 
 ```text
-Agent Computer = Agent Sphere + Agent App
-agent-sphere.deb = Mote Runtime + MEdge + MLINK
-Mote Runtime = sphered + moted + mote-proxy + mote-transportd
+Agent Computer = agent-sphere.deb + agent-apps.deb
+
+agent-sphere.deb
+├── sphered               native MoteBus/DC foundation
+├── moted                 Host Mote Endpoint and admitted local broker
+├── mote-proxy            outbound Mote access
+├── mote-transportd       D/MSG runtime
+├── medge                 MBox + MDrive + MCP
+└── mlink                 local device and I/O mechanics
 ```
 
-`agent-sphere` is a dependency-only Debian package. It installs documentation
-and declares six direct dependencies. It has no executable, daemon, systemd
-unit, maintainer script, runtime configuration, credentials, or package manager.
+The metapackage owns composition. It contains documentation and six direct
+Debian dependencies, with no daemon, hooks, updater or package manager.
+APT/DPKG resolve packages; each component owns its systemd lifecycle.
 
-| Plane | Package | Initial dependency floor |
-| --- | --- | --- |
-| Transport / communication | sphered: native MoteBus/DC foundation | 4.1.0-2 |
-| Transport / communication | moted: Host Mote Endpoint | 3.5.0-8 |
-| Transport / communication | mote-proxy: Mote Access Endpoint | 2.0.0-5 |
-| Transport / communication | mote-transportd: D/MSG runtime | 2.0.0-5 |
-| Agentic Edge | medge: edge execution | 2.0.0-2 |
-| Local I/O | mlink: device and local I/O | 2.0.0-3 |
+MEdge is one native runtime containing MBox command admission and dispatch,
+MDrive local storage, and a fixed MCP extension. Its MCP extension uses the
+separate Apps-owned Mote Bridge MCP. AGOS reaches admitted local operations
+through MoteD. MLINK owns the device mechanics below MEdge.
 
-Five initial floors come from the public
-[medge-v5.9.0-8 component release](https://github.com/motebus/download/releases/tag/medge-v5.9.0-8).
-The renamed `mote-transportd 2.0.0-5` component is supplied alongside this
-release. `component-baseline.json` records the six artifact identities and
-digests. These are reference versions, not an assertion of end-to-end runtime
-compatibility for all future component releases. Ordinary Linux dependencies,
-including Docker in the current MEdge package, remain component-owned.
+## Package baseline
 
-AGOS, SS-WebOS, MDesk, Jujue, Codex, MCP application capabilities, UltraOne
-Comm/Ops, and Ultravisor are outside this package. The second top-level
-installation package, `agent-apps`, is designed to compose `agos`, `ss-webos`,
-`mdesk`, `mote-bridge-mcp`, and `cx-node`, with optional separate `model-node`.
-Its compatible AGOS implementation is pending, so this initial release does
-not claim a complete two-package Agent Computer installation. Agent App owns application
-composition. Each component retains its own source and release lifecycle.
+| Component | Minimum version |
+| --- | --- |
+| sphered | 4.1.0-2 |
+| moted | 3.6.0-2 |
+| mote-proxy | 2.0.0-5 |
+| mote-transportd | 2.0.0-6 |
+| medge | 3.0.0-2 |
+| mlink | 2.1.0-1 |
 
-## Install the initial release
+`component-baseline.json` records these floors. Exact component artifacts and
+source-build provenance belong to the coordinated
+[MoteBus distribution](https://github.com/motebus/download).
+The initial component set targets Ubuntu amd64. `Architecture: all` describes
+this documentation-only metapackage, not every component's platform support.
 
-This repository publishes GitHub release assets. Signed APT distribution
-uses the existing MoteBus download repository through a separately approved
-additive package publication. It preserves the legacy component bundles.
-After the signed APT publication succeeds, the system entry command is:
+## Install both entry packages
 
-```sh
-sudo apt-get update
-sudo apt-get install agent-sphere
-```
+The second entry package, `agent-apps`, composes AGOS, Model Router, Model LLM,
+CX Agent, SS-WebOS, MDesk, Obsidian, UChat, Mote Bridge MCP, the Vault Sync pair,
+Mote SecD and Codex Mesh. AGOS runs agents and governs agent/model resources;
+Model Router combines routing and resource scheduling; Model LLM owns inference.
 
-APT then selects all six runtime dependencies automatically. The complete
-`apt install agent-sphere agent-apps` product entry remains pending the
-compatible AGOS/App release. Before the additive APT publication, the
-following local-file procedure is available for packaging evaluation. Five existing components must be available from the
-configured, signature-verified MoteBus component APT repository described in
-the [component distribution documentation](https://github.com/motebus/download#trust-chain).
-The initial component baseline is published for Ubuntu amd64; `Architecture:
-all` describes this documentation-only metapackage, not availability of the
-components on every architecture or Linux distribution.
-
-Download `agent-sphere_0.1.0-2_all.deb`,
-`mote-transportd_2.0.0-5_amd64.deb`, `agent-sphere-apps.sh`, `SHA256SUMS`, and `release-manifest.json` from this repository's GitHub release, then run in the
-download directory:
-
-```sh
-sha256sum --check SHA256SUMS
-sudo apt-get update
-sudo apt-get install --no-install-recommends --no-remove ./agent-sphere_0.1.0-2_all.deb ./mote-transportd_2.0.0-5_amd64.deb
-```
-
-The checksum identifies the release bytes; it is not an independent signature.
-Use the official HTTPS release and its recorded GitHub Actions build provenance.
-The metapackage embeds no component binaries. APT resolves the local renamed
-component plus the five existing packages from their configured repositories.
-The separate `agent-sphere-apps.sh` installer uses native APT and is not
-installed by the metapackage. There is no new updater or runtime wrapper.
-
-`mote-transportd` is the renamed D/MSG package. Its existing `mote-chatd`
-executable, app protocol, configuration paths and journal remain unchanged.
-The new `mote-transportd.service` has independent Debian enablement state,
-so purging the old package cannot remove the new unit's startup links. Versioned `Provides: mote-chatd` preserves existing client package
-dependencies; `Conflicts/Replaces` ensures only one physical runtime owner.
-On a host with the old physical package installed, the no-removal command
-above deliberately fails. Review an APT migration plan that replaces only
-`mote-chatd` before installing on that host; do not allow unrelated removals.
-
-Removing the metapackage removes its documentation. DPKG does not remove its
-dependencies as part of that removal. A later, separate APT autoremove may
-consider automatically installed packages; review that plan before running it.
-
-## Install Sphere and App together
-
-`agent-sphere-apps.sh` is the single installer entry for the two top-level
-packages. With the official signed MoteBus APT repository configured, download
-the release assets, verify `SHA256SUMS`, then run:
+After the coordinated release is available in the configured signed MoteBus
+APT repository, download and verify the release installer, then run:
 
 ```sh
 sudo bash ./agent-sphere-apps.sh
 ```
 
-It updates APT metadata, checks a no-removal installation plan for both
-`agent-sphere` and `agent-apps`, then installs both in one APT invocation.
-APT asks for confirmation; pass `--yes` explicitly for unattended installation.
-The script does not configure repositories, provision identities, or replace
-component service management. It cannot install both packages until the
-compatible `agent-apps` release is available; it fails before package installation
-if either package or its dependency graph cannot be resolved.
+The installer downloads the pinned unmodified official Obsidian DEB, checks
+its SHA-256 and Debian metadata, and supplies it to the same APT transaction
+as `agent-sphere` and `agent-apps`. MoteBus does not redistribute Obsidian.
+APT asks for confirmation; `--yes` supports unattended installation.
+The installer fails before DPKG if dependencies cannot resolve or the reviewed
+transaction boundary is violated. It does not select an Obsidian Vault,
+activate a plugin, provision identity or grant runtime access.
 
-## Status and known implementation gaps
+Only the reviewed Vault Sync, CX Agent and Model LLM package replacements may
+remove their former package names. An APT protocol-v3 hook checks the final
+transaction under the APT lock and rejects other removals, retired package
+installation and downgrades. On hosts with legacy `mote-chatd` ownership, a
+separate documentation-only record preserves the locked configuration; the
+single runtime belongs to `mote-transportd`. The old record is not removed.
 
-Version 0.1.0-2 is an initial composition prerelease, not Agent Sphere v1.0
-runtime acceptance. Successful APT configuration means the packages are
-installed; it does not mean the host is Sphere Ready.
+Removing a composition package removes its documentation. Component removal
+and user-data preservation need the matching signed uninstall contract. The
+legacy full-bundle uninstaller cannot remove this composition and must stop
+before mutation. Do not purge a protected configuration ownership record.
 
-- Current MEdge still describes the older APort/Qbix assembly. The new native
-  MEdge design must separate AGOS-owned admission from edge execution.
-- Current MEdge does not automatically enable/start its service and expects an
-  existing external Docker `ag-net` network. These lifecycle dependencies need
-  a component-owned design and implementation update.
-- Current MLINK leaves its service and device adapters disabled by default.
-  Device enrollment and MoteD admission remain separate requirements.
-- Host identity/trust provisioning, a reachable UltraOne peer, D/MSG round trips,
-  admitted MEdge-to-MLINK I/O, and reboot recovery need runtime verification.
-- Historical `agos 1.0.0-16` requires standalone `qbix`, which current MEdge
-  declares incompatible. It is not a compatible Agent App for this baseline.
+## Acceptance
 
-These gaps are not addressed by adding privileged hooks to the composition
-package. Component packages own their units, data, identities, and recovery.
-New MEdge and AGOS designs can evolve independently of this package.
+Package installation and runtime readiness are separate checks. Version
+0.1.0-5 composes the initial native profile; it does not certify Sphere Ready.
+MBox policy and individual I/O endpoints require explicit owner admission.
+MDrive initially supports bounded local objects, not advanced XS operations,
+remote MDrive publication or automatic access to a real Obsidian Vault.
 
-Sphere Ready requires installed package state, operational Sphered MoteBus/DC,
-running MoteD and reachable host `.mote`, operational Proxy, connected MoteChatD,
-bidirectional D/MSG, running MEdge and MLINK, and successful local I/O enumeration.
-v1.0 acceptance additionally requires a usable admitted I/O operation and
-restoration of these conditions after reboot without manual intervention.
+Sphere Ready additionally requires operational transport and host identity,
+bidirectional D/MSG with the intended UltraOne peer, admitted local I/O and
+recovery after reboot. AGOS/model backend configuration and actual inference
+are separate Apps acceptance. These are not implied by successful packaging.
 
-## Build and release
-
-Build tooling uses Python 3, Git, and `dpkg-deb`; none is installed by the
-metapackage. Run from the repository root:
+## Build and verification
 
 ```sh
 python3 scripts/package.py build
-python3 scripts/package.py verify dist/agent-sphere_0.1.0-2_all.deb
-python3 -m unittest discover -s tests
+python3 -m unittest discover -s tests -v
+python3 scripts/check-installer-transaction.py
 ```
 
-The build normalizes timestamps, permissions, owner IDs, and archive compression.
-CI checks identical rebuilds, rejects payload and dependency boundary violations,
-and simulates APT resolution with the signed component repository on Ubuntu
-24.04. Dependency simulation does not install services or prove runtime health.
-
-Publication uses the workflow dispatch on committed `main`, passes the build
-and dependency checks, then publishes their exact artifacts through the `release`
-environment. The release includes both DEBs, the installer, a manifest with commit/run identity,
-and SHA-256 checksums. Existing releases are never overwritten. Repository
-classification is in `agent-sphere-deb.env`; it is not runtime configuration
-and is never included in the DEB.
+Build tooling is not a runtime dependency. CI verifies reproducible package
+bytes, exact composition, absence of hooks/runtime payload, and installer
+checks. The offline transaction fixture uses real APT/DPKG in an isolated
+namespace. The aggregate publisher owns signed-index dependency resolution
+and clean Ubuntu installation gates before public APT activation. Existing
+published release tags remain immutable.

@@ -141,7 +141,7 @@ if stage == 'install':
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:4], ['--simulate','install','agent-sphere=0.1.0-7','agent-apps=0.1.0-2'])
+        self.assertEqual(self.calls()[1][:4], ['--simulate','install','agent-sphere=0.1.0-8','agent-apps=0.1.0-2'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][-4:], ['install', *self.calls()[1][2:]])
         self.assertNotIn('--yes', self.calls()[-1])

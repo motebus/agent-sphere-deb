@@ -32,7 +32,7 @@ through MoteD. MLINK owns the device mechanics below MEdge.
 | moted | 3.6.0-2 |
 | mote-proxy | 2.0.0-5 |
 | mote-transportd | 2.0.0-6 |
-| medge | 3.0.0-2 |
+| medge | 3.0.0-3 |
 | mlink | 2.1.0-1 |
 
 `component-baseline.json` records these floors. Exact component artifacts and
@@ -105,7 +105,10 @@ before mutation. Do not purge a protected configuration ownership record.
 ## Acceptance
 
 Package installation and runtime readiness are separate checks. Version
-0.1.0-7 composes the initial native profile; it does not certify Sphere Ready.
+0.1.0-8 requires MEdge 3.0.0-3, which fixes the provider socket group on hosts
+where MoteD has a distinct primary group. Re-running the permanent installer
+on a v7 host therefore selects that MEdge update through the new dependency
+floor. It does not certify Sphere Ready.
 MBox policy and individual I/O endpoints require explicit owner admission.
 MDrive initially supports bounded local objects, not advanced XS operations,
 remote MDrive publication or automatic access to a real Obsidian Vault.

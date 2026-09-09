@@ -1,19 +1,16 @@
-Agent Sphere 0.1.0-7 fixes installation on an ordinary published
-mote-chatd 2.0.0-4 host that has no protected DPKG-owned topology conffile.
-It explicitly selects replacement by the existing mote-transportd 2.0.0-6
-artifact, while protected legacy owners retain their guarded record.
-The ownership classifier is repeated under APT's lock; the normal path
-requires exact installed package metadata, reviewed hooks and runtime digest.
+Agent Sphere 0.1.0-8 requires MEdge 3.0.0-3, correcting the provider socket
+group on hosts where MoteD has a distinct primary group. The new metapackage
+and installer floor ensure a rerun upgrades an already installed v7 host;
+merely publishing a newer dependency would leave the old satisfied version
+installed.
 
-The installer also accepts the reviewed public cx-node 0.3.3-6 replacement
-with exact lifecycle and destination-artifact checks. Piped interactive use
-reads APT confirmation from the controlling terminal; unattended use still
-requires explicit --yes.
+The installer retains the reviewed ordinary MoteChatD and public CX migration
+checks, artifact digests and interactive confirmation behavior. Other component
+floors and identities remain unchanged. The matching signed Agent Computer
+aggregate owns the exact MEdge artifact pin and package-distribution gates.
+Previous package and installer releases remain immutable.
 
-Real isolated APT/DPKG tests preserve existing topology, normal configuration,
-receipt and journal contents, inode and ctime through migration, repeated
-installation and old-record purge. Ownership/artifact drift stops before DPKG.
-Component DEBs, identities and runtime boundaries are unchanged. This remains
-a composition prerelease; live connectivity, owner admission, actual model
-execution and reboot readiness require separate acceptance. Prior releases
-remain immutable.
+Native APT resolver tests cover the old satisfied dependency, the forced v8
+upgrade, repeat installation and failure when corrected MEdge is unavailable.
+These checks do not establish live owner admission, connectivity or reboot
+readiness. This remains a composition prerelease.

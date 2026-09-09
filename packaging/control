@@ -1,11 +1,11 @@
 Package: agent-sphere
-Version: 0.1.0-7
+Version: 0.1.0-8
 Architecture: all
 Section: metapackages
 Priority: optional
 Maintainer: MoteBus Engineering <engineering@ypcloud.com>
 Homepage: https://github.com/motebus/agent-sphere-deb
-Depends: sphered (>= 4.1.0-2), moted (>= 3.6.0-2), mote-proxy (>= 2.0.0-5), mote-transportd (>= 2.0.0-6), medge (>= 3.0.0-2), mlink (>= 2.1.0-1)
+Depends: sphered (>= 4.1.0-2), moted (>= 3.6.0-2), mote-proxy (>= 2.0.0-5), mote-transportd (>= 2.0.0-6), medge (>= 3.0.0-3), mlink (>= 2.1.0-1)
 Description: Agent Computer system substrate composition
  Composes the independent MoteBus/DC foundation, Host Mote Endpoint,
  Mote Access Endpoint, D/MSG runtime, Agentic Edge runtime, and Local I/O.

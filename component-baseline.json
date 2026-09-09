@@ -1,7 +1,7 @@
 {
   "schema": "agent-sphere-component-baseline/v2",
   "aggregate_repository": "https://github.com/motebus/download",
-  "aggregate_tag": "agent-computer-v0.1.0-1",
+  "aggregate_tag": "agent-computer-v0.1.0-3",
   "artifact_verification_owner": "signed Agent Computer aggregate publication",
   "packages": [
     {
@@ -26,7 +26,7 @@
     },
     {
       "name": "medge",
-      "version": "3.0.0-2",
+      "version": "3.0.0-3",
       "architecture": "amd64"
     },
     {

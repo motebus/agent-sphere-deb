@@ -36,7 +36,9 @@ def in_namespace():
     assert os.geteuid() == 0 and (base / 'namespace-marker').read_text() == 'agent-computer-apt-fixture'
     guard = base / 'guard'
     text = (ROOT / 'agent-sphere-apps.sh').read_text()
-    guard.write_text(text.split("<<'GUARD'\n", 1)[1].split('\nGUARD\n', 1)[0] + '\n')
+    start=text.index('classify_legacy_chatd() {')
+    classifier=text[start:text.index('\n}\n',start)+3]
+    guard.write_text('#!/bin/bash\nset -euo pipefail\n'+classifier+"expected_legacy_state=absent\n"+text.split("<<'GUARD'\n", 1)[1].split('\nGUARD\n', 1)[0] + '\n')
     guard.chmod(0o700)
     evidence = []
     for scenario in ('vault-rename', 'unrelated-removal', 'chatd-removal'):
@@ -57,6 +59,12 @@ def in_namespace():
         (case / 'log').mkdir()
         apt_config = case / 'apt.conf'
         apt_config.write_text(f'Dir::Etc "{etc}";\n')
+        bindir=case/'bin';bindir.mkdir()
+        for tool in ('dpkg-query','stat'):
+            real=shutil.which(tool)
+            program=(f"os.execv({real!r},[{real!r},'--admindir={admin}',*sys.argv[1:]])" if tool=='dpkg-query'
+                     else f"os.execv({real!r},[{real!r},*sys.argv[1:-1],{str(root)!r}+sys.argv[-1]])")
+            target=bindir/tool;target.write_text('#!/usr/bin/python3\nimport os,sys\n'+program+'\n');target.chmod(0o755)
         oldname = 'mote-chatd' if scenario == 'chatd-removal' else 'mote-sync'
         old = package(case, oldname, '2.0.0-4' if scenario == 'chatd-removal' else '1.1.0-2')
         keeper = package(case, 'fixture-keeper', '1.0')
@@ -76,7 +84,7 @@ def in_namespace():
                 '-o', 'DPkg::Tools::Options::' + str(guard) + '::InfoFD=0',
                 'install', new]
         accepted = scenario == 'vault-rename'
-        output = run(args, success=accepted, env={'APT_CONFIG': str(apt_config)})
+        output = run(args, success=accepted, env={'APT_CONFIG': str(apt_config),'PATH':str(bindir)+os.pathsep+os.environ['PATH']})
         (case / 'apt.log').write_text(output)
         status = run(['dpkg-query', '--admindir=' + str(admin), '-W', '-f=${binary:Package}\t${db:Status-Abbrev}\n'])
         if accepted:
@@ -85,7 +93,7 @@ def in_namespace():
             assert 'mote-sync\tii ' not in status, status
         else:
             rejected = 'mote-chatd' if scenario == 'chatd-removal' else 'fixture-keeper'
-            assert 'transaction refused: removal of ' + rejected in output, output
+            assert ('legacy ownership is unsupported at transaction time' if scenario=='chatd-removal' else 'transaction refused: removal of ' + rejected) in output, output
             assert (admin / 'status').read_bytes() == before, 'DPKG state changed before guard rejection'
         evidence.append({'scenario': scenario, 'passed': True, 'actual_apt_dpkg': True,
                          'host_modified': False, 'status': status})
@@ -105,7 +113,7 @@ def main():
         (temporary / 'namespace-marker').write_text('agent-computer-apt-fixture')
         output = run(['bwrap', '--unshare-all', '--uid', '0', '--gid', '0',
                       '--ro-bind', '/', '/', '--proc', '/proc', '--dev', '/dev', '--tmpfs', '/tmp',
-                      '--bind', str(temporary), '/tmp/fixture',
+                      '--bind', str(temporary), '/tmp/fixture', '--setenv', 'TMPDIR', '/tmp/fixture',
                       sys.executable, str(Path(__file__).resolve()), '--inside-namespace'])
         print(output)
         shutil.copyfile(temporary / 'evidence.json', ROOT / 'build/apt-transaction-evidence.json')

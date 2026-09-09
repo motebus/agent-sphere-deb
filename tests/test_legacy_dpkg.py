@@ -25,6 +25,8 @@ sys.exit(subprocess.call([{self.query!r}, {'--admindir='+str(self.root/'var/lib/
 ''')
         self.fixture.write_fake('stat', f'''
 import subprocess,sys
+# Map the unprivileged private-root fixture UID to virtual root.
+if sys.argv[2] == '%u:%a':print('0:640');sys.exit(0)
 assert sys.argv[-1] == {TARGET!r}
 sys.exit(subprocess.call([{self.stat!r}, *sys.argv[1:-1], {str(self.target)!r}]))
 ''')
@@ -62,11 +64,11 @@ sys.exit(subprocess.call([{self.stat!r}, *sys.argv[1:-1], {str(self.target)!r}])
         self.assertFalse(Path(str(self.fixture.log)+'.download').exists())
         self.assertEqual((self.root/'var/lib/dpkg/status').read_bytes(),before)
 
-    def test_actual_installed_create_once_record_does_not_select_retention(self):
+    def test_unreviewed_installed_fixture_without_identity_is_rejected(self):
         self.run_dpkg('--install',self.package('2.0.0-4'))
         self.rejected_before_download()
 
-    def test_actual_residual_nonprotected_record_does_not_select_retention(self):
+    def test_unreviewed_residual_fixture_without_identity_is_rejected(self):
         self.run_dpkg('--install',self.package('2.0.0-4'))
         self.run_dpkg('--remove','mote-chatd')
         self.rejected_before_download()

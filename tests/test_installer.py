@@ -5,6 +5,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import fcntl
+import pty
+import select
+import termios
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,7 +27,7 @@ class InstallerTests(unittest.TestCase):
         self.log = self.root / "apt-calls.jsonl"
         self.env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ['PATH'],
                         APT_TEST_LOG=str(self.log), TMPDIR=str(self.root))
-        for key in ('APT_TEST_FAIL', 'APT_TEST_UID', 'APT_TEST_PLAN', 'APT_TEST_ACTIONS', 'APT_TEST_OBSIDIAN', 'APT_TEST_CHATD', 'APT_TEST_CHATD_FILE'):
+        for key in ('APT_TEST_FAIL', 'APT_TEST_UID', 'APT_TEST_PLAN', 'APT_TEST_ACTIONS', 'APT_TEST_OBSIDIAN', 'APT_TEST_CHATD', 'APT_TEST_CHATD_FILE', 'APT_TEST_FINAL_CHATD', 'APT_TEST_HOOK', 'APT_TEST_PROMPT', 'APT_TEST_CHATD_ACCESS'):
             self.env.pop(key, None)
         self.write_fake("id", """
 import os, sys
@@ -37,8 +42,14 @@ pathlib.Path(args[args.index('--output')+1]).write_bytes(b'fixture-official-deb'
 """)
         self.write_fake("sha256sum", """
 import os, sys
-sys.stdin.read()
-sys.exit(1 if os.environ.get('APT_TEST_OBSIDIAN') == 'bad-digest' else 0)
+if len(sys.argv) == 2:
+    hashes={'prerm':'a583a5e196cab7845800d8bade6cca1b1e86db9d077e2749d24ce7ad3b224085',
+            'postrm':'cad515185035337dd03da926ff380a1cf5a47fd074b6ff7f8525f7d7d1384196'}
+    if '/cx-node.' in sys.argv[1]:hashes={'prerm':'5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3','postrm':'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}
+    print(('0'*64 if os.environ.get('APT_TEST_HOOK') else hashes[sys.argv[1].rsplit('.',1)[-1]])+'  '+sys.argv[1])
+else:
+    sys.stdin.read()
+    sys.exit(1 if os.environ.get('APT_TEST_OBSIDIAN') == 'bad-digest' else 0)
 """)
         self.write_fake("dpkg-deb", """
 import os, sys
@@ -47,15 +58,19 @@ print('unexpected' if os.environ.get('APT_TEST_OBSIDIAN') == 'bad-control' else 
 """)
         self.write_fake("dpkg-query", """
 import os, sys
+if sys.argv[-1] == 'cx-node':print('0.3.3-6|amd64|install ok installed|');sys.exit(0)
 value=os.environ.get('APT_TEST_CHATD', '')
+if 'Architecture' in sys.argv[2]:
+    print('amd64\\n'+('deinstall ok config-files' if value.startswith('config-files') else 'install ok installed'))
+    sys.exit(0)
 if value == 'query-error':sys.exit(2)
 if not value:sys.exit(1)
 if value == 'installed':value='installed\\n2.0.0-4\\n /etc/mote/mote-chatd/mote-chatd-mchat.env ' + 'a'*32 + ' obsolete'
 print(value)
 """)
         self.write_fake("stat", """
-import os
-print(os.environ.get('APT_TEST_CHATD_FILE', 'regular file'))
+import os,sys
+print(os.environ.get('APT_TEST_CHATD_ACCESS','0:640') if sys.argv[2] == '%u:%a' else '0:0:755:regular file' if sys.argv[-1].startswith('/var/lib/dpkg/info/') else os.environ.get('APT_TEST_CHATD_FILE', 'regular file'))
 """)
         self.write_fake("apt-get", """
 import json, os, subprocess, sys
@@ -72,8 +87,13 @@ if stage == 'install':
     assert 'DPkg::Tools::Options::' + hook + '::Version=3' in args
     assert 'DPkg::Tools::Options::' + hook + '::InfoFD=0' in args
     protocol = 'VERSION 3\\nAPT::Architecture=amd64\\n\\n' + os.environ.get('APT_TEST_ACTIONS', '')
-    result = subprocess.run([hook], input=protocol, text=True,
-                            env=dict(os.environ, APT_HOOK_INFO_FD='0'))
+    final_env=dict(os.environ, APT_HOOK_INFO_FD='0')
+    if 'APT_TEST_FINAL_CHATD' in os.environ:final_env['APT_TEST_CHATD']=os.environ['APT_TEST_FINAL_CHATD']
+    result = subprocess.run([hook], input=protocol, text=True, env=final_env)
+    if result.returncode == 0 and os.environ.get('APT_TEST_PROMPT'):
+        print('Fixture APT: Continue? [y/N]',flush=True)
+        assert os.isatty(0), 'APT must read the controlling terminal'
+        sys.exit(0 if sys.stdin.readline().strip() == 'y' else 1)
     sys.exit(result.returncode)
 """)
 
@@ -86,19 +106,125 @@ if stage == 'install':
         return subprocess.run([BASH, str(INSTALLER), *args], env=self.env,
                               capture_output=True, text=True, check=False)
 
+    def run_piped_installer(self, answer):
+        master, slave = pty.openpty()
+        def terminal():
+            os.setsid()
+            fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
+        env=dict(self.env, APT_TEST_PROMPT='1')
+        child=subprocess.Popen([BASH], stdin=subprocess.PIPE, stdout=slave, stderr=slave,
+                               env=env, preexec_fn=terminal, pass_fds=(slave,))
+        os.close(slave)
+        child.stdin.write(INSTALLER.read_bytes());child.stdin.close()
+        output=b'';sent=False;deadline=time.monotonic()+20
+        try:
+            while time.monotonic()<deadline:
+                if select.select([master],[],[],0.1)[0]:
+                    try:chunk=os.read(master,65536)
+                    except OSError:break
+                    if not chunk:break
+                    output+=chunk
+                    if b'Fixture APT: Continue?' in output and not sent:
+                        os.write(master,(answer+'\n').encode());sent=True
+                if child.poll() is not None:break
+            self.assertTrue(sent,output.decode())
+            child.wait(timeout=3)
+            return subprocess.CompletedProcess([BASH],child.returncode,output.decode(),'')
+        finally:
+            if child.poll() is None:child.kill();child.wait()
+            os.close(master)
+
     def calls(self):
         return [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
 
     def test_default_keeps_apt_confirmation_and_installs_both(self):
-        result = self.run_installer()
-        self.assertEqual(result.returncode, 0, result.stderr)
+        result = self.run_piped_installer('y')
+        self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:4], ['--simulate','install','agent-sphere=0.1.0-6','agent-apps=0.1.0-2'])
+        self.assertEqual(self.calls()[1][:4], ['--simulate','install','agent-sphere=0.1.0-7','agent-apps=0.1.0-2'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][-4:], ['install', *self.calls()[1][2:]])
         self.assertNotIn('--yes', self.calls()[-1])
         self.assertIn('health are separate checks', result.stdout)
         self.assertFalse(list(self.root.glob('agent-sphere-apps.*')))
+
+    def test_piped_installer_respects_interactive_refusal(self):
+        result=self.run_piped_installer('n')
+        self.assertNotEqual(result.returncode,0,result.stdout)
+        self.assertNotIn('--yes',self.calls()[-1])
+
+    def test_headless_stdin_requires_explicit_yes(self):
+        # A fresh session cannot inherit a developer terminal accidentally.
+        result=subprocess.run([BASH,str(INSTALLER)],env=self.env,stdin=subprocess.DEVNULL,
+                              capture_output=True,text=True,start_new_session=True)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('confirmation needs a terminal',result.stderr)
+        self.assertEqual(len(self.calls()),2)
+
+    def ordinary_record(self, state='installed'):
+        return state+'\n2.0.0-4\n /etc/mote/mote-chatd/mote-chatd-deb.env '+'a'*32
+
+    def test_ordinary_release_uses_runtime_replacement_without_retention(self):
+        self.env['APT_TEST_CHATD']=self.ordinary_record()
+        artifact=self.root/'transport.deb';artifact.touch()
+        self.env['APT_TEST_PLAN']='Remv mote-chatd [2.0.0-4]\nInst mote-transportd (2.0.0-6 stable)'
+        self.env['APT_TEST_ACTIONS']=('mote-chatd 2.0.0-4 amd64 none > - - none **REMOVE**\n'
+            f'mote-transportd - - none < 2.0.0-6 amd64 none {artifact}\n')
+        result=self.run_installer('--yes')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertNotIn('mote-chatd=2.0.0-6',self.calls()[-1])
+        self.assertIn('mote-chatd-',self.calls()[-1])
+
+    def test_exact_public_cx_baseline_is_checked_before_removal(self):
+        artifact=self.root/'cx-agent.deb';artifact.touch()
+        self.env['APT_TEST_PLAN']='Remv cx-node [0.3.3-6]\nInst cx-agent (0.3.4-2 stable)'
+        self.env['APT_TEST_ACTIONS']=(f'cx-agent - - none < 0.3.4-2 amd64 none {artifact}\n'
+            'cx-node 0.3.3-6 amd64 none > - - none **REMOVE**\n')
+        result=self.run_installer('--yes')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.env['APT_TEST_HOOK']='changed'
+        result=self.run_installer('--yes')
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('unreviewed legacy CX',result.stderr)
+
+    def test_ordinary_residual_state_does_not_install_retention(self):
+        self.env['APT_TEST_CHATD']=self.ordinary_record('config-files')
+        result=self.run_installer('--yes')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertNotIn('mote-chatd=2.0.0-6',self.calls()[-1])
+        self.assertIn('mote-chatd-',self.calls()[-1])
+
+    def test_unknown_ordinary_hook_stops_before_download(self):
+        self.env['APT_TEST_CHATD']=self.ordinary_record();self.env['APT_TEST_HOOK']='changed'
+        result=self.run_installer('--yes')
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('differs from the reviewed',result.stderr)
+        self.assertEqual(self.calls(),[])
+        self.assertFalse(Path(str(self.log)+'.download').exists())
+
+    def test_unsafe_existing_topology_access_is_rejected_early(self):
+        self.env['APT_TEST_CHATD']=self.ordinary_record()
+        for access in ('1000:640','0:666','0:660'):
+            self.env['APT_TEST_CHATD_ACCESS']=access
+            result=self.run_installer('--yes')
+            self.assertNotEqual(result.returncode,0)
+            self.assertIn('root-owned and not writable',result.stderr)
+            self.assertEqual(self.calls(),[])
+            self.assertFalse(Path(str(self.log)+'.download').exists())
+
+    def test_ordinary_migration_rejects_other_transport_version(self):
+        self.env['APT_TEST_CHATD']=self.ordinary_record()
+        self.env['APT_TEST_ACTIONS']='mote-transportd - - none < 2.0.0-7 amd64 none /cache/transport.deb\n'
+        result=self.run_installer('--yes')
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('requires exact transport 2.0.0-6',result.stderr)
+
+    def test_lock_time_ownership_drift_stops_before_dpkg(self):
+        for initial,final in [(self.ordinary_record(),'installed'),('installed',self.ordinary_record()),('',self.ordinary_record())]:
+            self.env['APT_TEST_CHATD']=initial;self.env['APT_TEST_FINAL_CHATD']=final
+            result=self.run_installer('--yes')
+            self.assertNotEqual(result.returncode,0)
+            self.assertIn('ownership changed after preflight',result.stderr)
 
     def test_yes_requires_explicit_flag(self):
         result = self.run_installer('--yes')
@@ -120,7 +246,7 @@ if stage == 'install':
 
     def test_install_failure_is_returned_without_fallback(self):
         self.env['APT_TEST_FAIL'] = 'install'
-        self.assertEqual(self.run_installer().returncode, 42)
+        self.assertEqual(self.run_installer('--yes').returncode, 42)
         self.assertEqual(len(self.calls()), 3)
 
     def test_non_root_is_rejected_without_apt(self):

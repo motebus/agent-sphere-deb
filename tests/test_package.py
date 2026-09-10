@@ -17,8 +17,8 @@ class PackageTests(unittest.TestCase):
         (ROOT / "build").mkdir(exist_ok=True)
 
     def test_core_excludes_manager_ui_and_local_ultra(self):
-        self.assertEqual(len(package.NAMES), 12)
-        self.assertTrue({"agos", "model-router", "model-llm", "codex-mesh", "mote-mcpd"}.issubset(package.NAMES))
+        self.assertEqual(len(package.NAMES), 11)
+        self.assertTrue({"agos", "model-router", "model-llm", "cx-mesh", "mote-mcpd"}.issubset(package.NAMES))
         self.assertFalse({"medge", "sphere-manager", "agent-apps", "agent-ultra", "mdesk", "ss-webos", "obsidian"}.intersection(package.NAMES))
         self.assertNotIn("Recommends", package.control())
         self.assertNotIn("Suggests", package.control())
@@ -40,7 +40,7 @@ class PackageTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             package.check_control(altered)
 
-    def test_hooks_and_runtime_payload_rejected(self):
+    def test_modified_hooks_and_runtime_payload_rejected(self):
         for extra in ["DEBIAN/postinst", "usr/bin/sphere-manager"]:
             with self.subTest(extra=extra), tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:
                 original = package.build(Path(tmp) / "base")

@@ -1,11 +1,11 @@
 # Agent Sphere
 
 `agent-sphere 0.2.0-1` is the headless core of the four-package Agent Sphere
-system. It composes Agent intelligence, model execution, Codex Mesh and Mote
+system. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies.
 
 ```text
-agent-sphere    Core: AGOS, Codex Mesh, model execution, Mote and local I/O
+agent-sphere    Core: AGOS, CX-Mesh, model execution, Mote and local I/O
 agent-ultra     Redixs, local Comm/Telegram, Obsidian and vault sync
 sphere-manager Dedicated native TUI/CLI backed by MEdge management
 agent-apps     Jujue, iAgent, SS-WebOS, MDesk and UChat
@@ -27,36 +27,65 @@ Exiting the management UI must not stop the backend or Core.
 | mote-transportd | 2.0.0-6 |
 | mlink | 2.1.0-1 |
 | mote-secd | 1.0.0-2 |
-| agos | 2.0.0-2 |
+| agos | 2.1.0-1 |
 | model-router | 0.1.0-1 |
 | model-llm | 0.1.0-3 |
-| cx-agent | 0.3.4-3 |
 | mote-mcpd | 3.0.0-3 |
-| codex-mesh | 1.0.0-2 |
+| cx-mesh | 1.1.0-1 |
 
 There are no `Recommends` or `Suggests`. This metapackage owns composition and
-contains only documentation. Each dependency owns its executable, service,
-configuration and native lifecycle. `mote-mcpd` retains on-demand stdio
+owns documentation and `agentsphere.target`. Native Debian helpers enable
+the target for boot and respect its existing disable or mask; no manager or
+TUI is started by Core. APT adds `init-system-helpers (>= 1.54)` for that
+lifecycle. Each dependency owns its executable, service and configuration. `mote-mcpd` retains on-demand stdio
 `mote mcp`; its package rename creates no daemon or new transport identity.
 
 This source is an **unreleased four-package candidate**. Native Mote MCPd,
-CX Agent and Codex Mesh artifacts must satisfy the new floors, and the
+CX-Mesh artifacts must satisfy the new floors, and the
 four-entry aggregate additionally requires actual Redixs, Comm, Jujue, iAgent,
 MEdge management and Sphere Manager artifacts. No alias or empty package may
 substitute for those runtimes. Pending exact migration hashes block release
 manifest generation. Existing published tags remain immutable.
 
+## Headless startup
+
+`agentsphere.target` wants `sphered.service`, `moted.service`,
+`mote-proxy.service`, `mote-transportd.service`, `mlink.service`,
+`mote-secd.service`, `agosd.service` and `model-router.service`. It is ordered
+after `basic.target` and enabled for `multi-user.target`. Starting the target
+requests these required Core units even if they were previously only disabled;
+explicit service masks remain authoritative. It does not add `PartOf` or
+reverse dependencies from Core to the manager, Ultra, or a desktop.
+
+Model LLM and CX-Mesh execution remain separately owner-enabled. AGPC means
+Agent Computer; CX-Mesh connects authorized AGPC peers without changing their
+existing identities. A running target is not a readiness assertion: configured
+identity, admission and live owner health determine usable capabilities.
+
 ## Complete installation and migration
 
-The permanent plural `agent-sphere-apps.sh` installer requests all four entries
+The canonical `agpc.sh` installer requests all four entries
 in one APT transaction: Core `0.2.0-1`, Ultra `0.1.0-1`, Sphere Manager
-`0.1.0-1` and Apps `0.2.0-1`. It acquires the pinned unmodified official Obsidian
+`3.1.0-1` and Apps `0.2.0-1`. It acquires the pinned unmodified official Obsidian
 amd64 DEB, verifies its SHA-256 and Debian metadata, and supplies it to the
 same transaction. Obsidian belongs to Ultra and is not rehosted by MoteBus.
 APT asks for confirmation. A piped installer reads `/dev/tty`; headless use
-requires explicit `--yes`.
+requires explicit `--yes`. After a successful interactive installation,
+`/usr/bin/sphere-manager` opens on the controlling terminal; `--yes` skips the UI.
+The byte-identical `agent-sphere-apps.sh` asset remains a compatibility entry.
 
-Before any download, the installer classifies legacy transport and MCP state.
+```sh
+curl -fsSL https://motebus.github.io/download/agpc.sh | sudo bash
+```
+
+Ubuntu 24.04 and 26.04 amd64 are supported. The bootstrap verifies the fixed
+public archive key SHA-256 and primary fingerprint and creates only missing
+reviewed APT source/key files. Existing exact files retain their bytes and
+metadata. Custom or ambiguous sources, keys and symlink destinations are
+refused. Required native OS tools, Python 3 with `tomllib`, and GPG must already
+be available; a missing prerequisite fails before mutation.
+
+Before any download, the installer classifies legacy transport, MCP and CX state.
 The same classifiers run again under APT's lock. Unknown package metadata,
 hooks, helper bytes, unsafe identity metadata or customized old system MCP
 entries stop before DPKG. Diagnostics do not print identity or configuration
@@ -81,9 +110,15 @@ installed `mote-mcpd` successor to own the normal path. No incidental old-record
 purge is performed. The runtime keeps legacy configuration/provider/helper
 paths while its managed Codex server entry uses the new package name.
 
-The public `cx-node 0.3.3-6` migration retains exact old hook checks and binds
-the new CX artifact. The reviewed local CX, Vault Sync and Model LLM renames
-remain bounded replacement pairs. APT protocol-v3 checks reject unrelated
+The CX-Mesh consolidation admits only reviewed `cx-node 0.3.3-6` or the
+`0.3.4-1~local20260909` preview, `cx-agent 0.3.4-2`/`0.3.4-3`, and
+`codex-mesh 1.0.0-1`/`1.0.0-2` predecessors. Exact cleanup hooks and transferred
+conffiles are checked, as are existing CX/Mesh identity and configuration
+metadata. Custom predecessor unit overrides and nonempty drop-ins are refused
+before APT; explicit `/dev/null` masks are preserved. Residual records require
+the successor to be the sole current owner of transferred conffiles. The same
+transaction must install the exact reviewed CX-Mesh artifact. Vault Sync and
+Model LLM renames remain bounded replacement pairs. APT protocol-v3 checks reject unrelated
 removals, retired package installation, downgraded components and any missing
 replacement. Changes between preflight and the locked transaction are denied.
 Identity files are never edited, diverted or assigned through manual DPKG
@@ -92,7 +127,8 @@ survive component migration. An absent bootstrap receipt may be created by
 its owning component's existing policy.
 
 Dropping a former dependency does not authorize removing it or running
-`autoremove`. Removing a meta removes its documentation only. The historical
+`autoremove`. Removing Core or Ultra stops and removes only its startup target
+and documentation; it does not stop or remove dependency services or data. The historical
 full-bundle uninstaller cannot safely remove this composition and must stop
 before mutation. Product removal needs a separately reviewed lifecycle and
 data-preservation plan.

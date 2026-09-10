@@ -20,7 +20,8 @@ jobs:
         run: |
           python3 scripts/package.py build
           python3 -m unittest discover -s tests -v
-          bash -n agent-sphere-apps.sh
+          bash -n agpc.sh
+          cmp agpc.sh agent-sphere-apps.sh
       - name: Bind source artifacts
         run: |
           python3 scripts/package.py manifest

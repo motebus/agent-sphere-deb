@@ -8,7 +8,9 @@ import subprocess
 import tempfile
 import unittest
 ROOT=Path(__file__).resolve().parents[1]
-CORE={p['name']:p['version'] for p in json.loads((ROOT/'component-baseline.json').read_text())['packages']}
+BASELINE=json.loads((ROOT/'component-baseline.json').read_text())
+CORE={p['name']:p['version'] for p in BASELINE['packages']}
+DEPS={**CORE,**BASELINE['system_dependencies']}
 
 
 class CoreDependencyTests(unittest.TestCase):
@@ -20,13 +22,13 @@ class CoreDependencyTests(unittest.TestCase):
             config=root/'apt.conf';config.write_text(f'Dir::Etc "{etc}";\n');status=root/'status'
             def fields(name,version):
                 data={'Package':name,'Version':version,'Architecture':'all','Maintainer':'Fixture <fixture@example.invalid>','Description':'Offline metadata fixture'}
-                if name=='agent-sphere':data['Depends']=', '.join(f'{n} (>= {v})' for n,v in CORE.items()) if version=='0.2.0-1' else 'medge (>= 3.0.0-3)'
+                if name=='agent-sphere':data['Depends']=', '.join(f'{n} (>= {v})' for n,v in DEPS.items()) if version=='0.2.0-1' else 'medge (>= 3.0.0-3)'
                 if name=='sphere-manager':data['Depends']='medge (>= 3.1.0-1)'
                 return data
             existing=[('agent-sphere','0.1.0-8'),('medge','3.0.0-3')] if legacy else []
             status.write_text('\n\n'.join('\n'.join(f'{k}: {v}' for k,v in dict(fields(n,v),Status='install ok installed').items()) for n,v in existing)+('\n' if existing else ''))
             before=status.read_bytes();index=[]
-            for n,v in [*CORE.items(),('agent-sphere','0.2.0-1'),('sphere-manager','0.1.0-1'),('medge','3.1.0-1'),*existing]:
+            for n,v in [*DEPS.items(),('agent-sphere','0.2.0-1'),('sphere-manager','3.1.0-1'),('medge','3.1.0-1'),*existing]:
                 if n==missing:continue
                 data=fields(n,v);stage=root/(n+v)/'DEBIAN';stage.mkdir(parents=True)
                 (stage/'control').write_text('\n'.join(f'{k}: {v}' for k,v in data.items())+'\n')
@@ -44,7 +46,7 @@ class CoreDependencyTests(unittest.TestCase):
     def test_fresh_core_does_not_pull_manager_medge_or_desktop(self):
         result=self.plan();self.assertEqual(result.returncode,0,result.stdout+result.stderr)
         selected={l.split()[1] for l in result.stdout.splitlines() if l.startswith('Inst ')}
-        self.assertEqual(selected,set(CORE)|{'agent-sphere'},result.stdout)
+        self.assertEqual(selected,set(DEPS)|{'agent-sphere'},result.stdout)
 
     def test_changing_ownership_does_not_remove_existing_medge(self):
         result=self.plan(legacy=True);self.assertEqual(result.returncode,0,result.stdout+result.stderr)

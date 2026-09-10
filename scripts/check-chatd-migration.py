@@ -61,6 +61,8 @@ def classifier():
     start=source.index('classify_legacy_chatd() {')
     result=source[start:source.index('\n}\n',start)+3]
     start=source.index('classify_legacy_mcp() {')
+    result+=source[start:source.index('\n}\n',start)+3]
+    start=source.index('classify_legacy_cx() {')
     return result+source[start:source.index('\n}\n',start)+3]
 
 
@@ -68,7 +70,7 @@ def make_guard(expected):
     source=(ROOT/'agent-sphere-apps.sh').read_text()
     body=source.split("<<'GUARD'\n",1)[1].split('\nGUARD\n',1)[0]
     guard=Path('/tmp/guard');guard.write_text('#!/bin/bash\nset -euo pipefail\n'+classifier()+
-                            f"expected_legacy_state='{expected}'\nexpected_mcp_state=absent\n"+body+'\n')
+                            f"expected_legacy_state='{expected}'\nexpected_mcp_state=absent\nexpected_cx_state=absent\n"+body+'\n')
     guard.chmod(0o700);return guard
 
 

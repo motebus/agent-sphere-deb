@@ -36,7 +36,7 @@
     },
     {
       "name": "agos",
-      "version": "2.0.0-2",
+      "version": "2.1.0-1",
       "architecture": "amd64"
     },
     {
@@ -50,20 +50,18 @@
       "architecture": "amd64"
     },
     {
-      "name": "cx-agent",
-      "version": "0.3.4-3",
-      "architecture": "amd64"
-    },
-    {
       "name": "mote-mcpd",
       "version": "3.0.0-3",
       "architecture": "amd64"
     },
     {
-      "name": "codex-mesh",
-      "version": "1.0.0-2",
+      "name": "cx-mesh",
+      "version": "1.1.0-1",
       "architecture": "amd64"
     }
   ],
-  "profile": "headless-core"
+  "profile": "headless-core",
+  "system_dependencies": {
+    "init-system-helpers": "1.54"
+  }
 }

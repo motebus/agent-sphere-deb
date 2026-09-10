@@ -1,0 +1,7 @@
+[Unit]
+Description=Agent Sphere headless core
+Wants=sphered.service moted.service mote-proxy.service mote-transportd.service mlink.service mote-secd.service agosd.service model-router.service
+After=basic.target
+
+[Install]
+WantedBy=multi-user.target

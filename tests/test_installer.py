@@ -29,15 +29,21 @@ class InstallerTests(unittest.TestCase):
         text = INSTALLER.read_text()
         text = text.replace("agentsphere_platform_check || fail 'Platform preflight failed. No package or source change was started.'", ": # platform checked by isolated bootstrap tests")
         text = text.replace("agentsphere_apt_bootstrap || fail 'Signed APT bootstrap failed. Package installation was not started.'", ": # bootstrap checked by isolated bootstrap tests")
-        text = text.replace('if ! agentsphere_launch_manager "${confirmation[@]}"; then', 'if ! true; then')
-        self.installer.write_text(text)
         self.bin = self.root / "bin"
         self.bin.mkdir()
+        # Trap an accidental fixed-path or PATH-based UI launch inside the fixture.
+        text = text.replace("/usr/bin/sphere-manager", str(self.bin / "sphere-manager"))
+        self.installer.write_text(text)
         self.log = self.root / "apt-calls.jsonl"
         self.env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ['PATH'],
                         APT_TEST_LOG=str(self.log), TMPDIR=str(self.root))
         for key in ('APT_TEST_FAIL', 'APT_TEST_UID', 'APT_TEST_PLAN', 'APT_TEST_ACTIONS', 'APT_TEST_OBSIDIAN', 'APT_TEST_CHATD', 'APT_TEST_CHATD_FILE', 'APT_TEST_FINAL_CHATD', 'APT_TEST_HOOK', 'APT_TEST_PROMPT', 'APT_TEST_CHATD_ACCESS'):
             self.env.pop(key, None)
+        self.write_fake("sphere-manager", """
+import os, pathlib, sys
+pathlib.Path(os.environ['APT_TEST_LOG'] + '.manager').touch()
+sys.exit(37)
+""")
         self.write_fake("id", """
 import os, sys
 assert sys.argv[1:] == ['-u']
@@ -201,12 +207,20 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-1','agent-ultra=0.1.0-1','sphere-manager=3.1.0-1','agent-apps=0.2.0-1'])
+        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-2','agent-ultra=0.1.0-1','sphere-manager=3.1.0-1','agent-apps=0.2.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][-6:], ['install', *self.calls()[1][2:]])
         self.assertNotIn('--yes', self.calls()[-1])
         self.assertIn('health are separate checks', result.stdout)
         self.assertFalse(list(self.root.glob('agent-sphere-apps.*')))
+
+    def test_successful_interactive_install_exits_without_opening_manager(self):
+        result = self.run_piped_installer('y')
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('packages installed.', result.stdout)
+        self.assertIn('Use sphere-manager', result.stdout)
+        self.assertFalse(Path(str(self.log) + '.manager').exists(), result.stdout)
+        self.assertNotIn('Sphere Manager exited', result.stdout)
 
     def test_piped_installer_respects_interactive_refusal(self):
         result=self.run_piped_installer('n')

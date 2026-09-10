@@ -156,17 +156,6 @@ agentsphere_apt_bootstrap() (
     _agentsphere_apt_state install "$key" "$temp"
 )
 
-# Call only after APT succeeds: agentsphere_launch_manager "${confirmation[@]}".
-# No TTY/--yes is a successful skip; an invoked frontend returns its own status.
-agentsphere_launch_manager() {
-    if [ "$#" -gt 1 ] || { [ "$#" -eq 1 ] && [ "$1" != --yes ]; }; then
-        printf '%s\n' 'Invalid manager launch option.' >&2; return 2
-    fi
-    [ "$#" -eq 0 ] || return 0
-    ( : </dev/tty >/dev/tty ) 2>/dev/null || return 0
-    [ -x /usr/bin/sphere-manager ] || { printf '%s\n' 'Installation completed, but Sphere Manager executable is unavailable.' >&2; return 1; }
-    /usr/bin/sphere-manager </dev/tty >/dev/tty 2>&1
-}
 # END SIGNED BOOTSTRAP
 
 agentsphere_platform_check || fail 'Platform preflight failed. No package or source change was started.'
@@ -490,7 +479,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.2.0-1 agent-ultra=0.1.0-1 sphere-manager=3.1.0-1 agent-apps=0.2.0-1 "$obsidian")
+packages=(agent-sphere=0.2.0-2 agent-ultra=0.1.0-1 sphere-manager=3.1.0-1 agent-apps=0.2.0-1 "$obsidian")
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove a protected mote-chatd record.
 if [[ $legacy_state == retention:* ]]; then
@@ -544,7 +533,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.2.0-1 [agent-ultra]=0.1.0-1 [sphere-manager]=3.1.0-1 [agent-apps]=0.2.0-1 [moted]=3.6.0-2 [medge]=3.1.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.1.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
+declare -A floor=([agent-sphere]=0.2.0-2 [agent-ultra]=0.1.0-1 [sphere-manager]=3.1.0-1 [agent-apps]=0.2.0-1 [moted]=3.6.0-2 [medge]=3.1.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.1.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -666,6 +655,3 @@ apt-get -o "DPkg::Pre-Install-Pkgs::=$guard" \
     "${confirmation[@]}" install "${packages[@]}" <&"$confirmation_fd"
 printf '%s\n' 'Agent Sphere, Agent Ultra, Sphere Manager and Agent Apps packages installed. Runtime configuration and health are separate checks.'
 printf '%s\n' 'Use sphere-manager to configure owner grants and inspect live status.'
-if ! agentsphere_launch_manager "${confirmation[@]}"; then
-    printf '%s\n' 'Package installation completed; Sphere Manager exited without completing the interactive session.' >&2
-fi

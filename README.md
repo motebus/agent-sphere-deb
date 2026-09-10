@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.2.0-1` is the headless core of the four-package Agent Sphere
+`agent-sphere 0.2.0-2` is the headless core of the four-package Agent Sphere
 system. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies.
 
@@ -65,13 +65,14 @@ identity, admission and live owner health determine usable capabilities.
 ## Complete installation and migration
 
 The canonical `agpc.sh` installer requests all four entries
-in one APT transaction: Core `0.2.0-1`, Ultra `0.1.0-1`, Sphere Manager
+in one APT transaction: Core `0.2.0-2`, Ultra `0.1.0-1`, Sphere Manager
 `3.1.0-1` and Apps `0.2.0-1`. It acquires the pinned unmodified official Obsidian
 amd64 DEB, verifies its SHA-256 and Debian metadata, and supplies it to the
 same transaction. Obsidian belongs to Ultra and is not rehosted by MoteBus.
 APT asks for confirmation. A piped installer reads `/dev/tty`; headless use
-requires explicit `--yes`. After a successful interactive installation,
-`/usr/bin/sphere-manager` opens on the controlling terminal; `--yes` skips the UI.
+requires explicit `--yes`. After successful installation, the installer prints
+the result and exits. Open `/usr/bin/sphere-manager` manually when needed.
+Package services retain their normal systemd lifecycle.
 The byte-identical `agent-sphere-apps.sh` asset remains a compatibility entry.
 
 ```sh

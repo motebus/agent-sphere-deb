@@ -11,5 +11,6 @@ class Bootstrap(unittest.TestCase):
   guards=[text.index('\n'+name+'=$(classify_legacy_') for name in ['legacy_state','mcp_state','cx_state']]
   bootstrap=text.index("\nagentsphere_apt_bootstrap || fail")
   self.assertTrue(platform<min(guards) and max(guards)<bootstrap<text.index('\nobsidian='))
-  self.assertLess(text.index('\napt-get -o '),text.index('\nif ! agentsphere_launch_manager '))
+  self.assertNotIn('agentsphere_launch_manager',text)
+  self.assertLess(text.index('\napt-get -o '),text.index("\nprintf '%s\\n' 'Use sphere-manager"))
   self.assertNotIn('aipc.sh',text)

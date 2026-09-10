@@ -459,7 +459,7 @@ CX_PREFLIGHT
 }
 
 # The released frontend owns no service, configuration or cleanup hooks.
-# Admit only its clean executable/shortcut state; removal must remain inert.
+# Pin the removal file list as well as its clean executable/shortcut state.
 classify_legacy_manager() {
 python3 - <<'MANAGER_PREFLIGHT'
 import hashlib
@@ -474,6 +474,7 @@ INFO = '/var/lib/dpkg/info/sphere-manager.'
 FILES = {
     '/usr/bin/sphere-manager': (0o755, '85bb3fb568b30fbbcdbae1ddc04ace65e9a3c64e27577b56b6d147d59b2d5b42'),
     INFO + 'md5sums': (0o644, '92be0d236d0be35a9946b0be1e15d762d47758de3af305512be1ab38aa73a8b2'),
+    INFO + 'list': (0o644, 'b5eb1da26b13044d1ce3bd261f0eae797b44c94b2f74f175e406019b6b2564f5'),
 }
 
 

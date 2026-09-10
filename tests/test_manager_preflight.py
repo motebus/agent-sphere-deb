@@ -42,7 +42,8 @@ class ManagerPreflightTests(unittest.TestCase):
         first=module.classify();self.assertRegex(first,r'^installed:sha256:[a-f0-9]{64}$')
         self.assertEqual(self.inspected,[
             ('/usr/bin/sphere-manager',0o755,'85bb3fb568b30fbbcdbae1ddc04ace65e9a3c64e27577b56b6d147d59b2d5b42'),
-            ('/var/lib/dpkg/info/sphere-manager.md5sums',0o644,'92be0d236d0be35a9946b0be1e15d762d47758de3af305512be1ab38aa73a8b2')])
+            ('/var/lib/dpkg/info/sphere-manager.md5sums',0o644,'92be0d236d0be35a9946b0be1e15d762d47758de3af305512be1ab38aa73a8b2'),
+            ('/var/lib/dpkg/info/sphere-manager.list',0o644,'b5eb1da26b13044d1ce3bd261f0eae797b44c94b2f74f175e406019b6b2564f5')])
         self.changed=True;self.assertNotEqual(module.classify(),first)
         self.changed=False;self.meta=metadata(ino=2);self.assertNotEqual(module.classify(),first)
 
@@ -89,6 +90,26 @@ class ManagerPreflightTests(unittest.TestCase):
 
 
 class ManagerFileTests(unittest.TestCase):
+    def test_real_reviewed_file_list_rejects_foreign_removal_path(self):
+        fixture=(Path(__file__).parent/'fixtures/sphere-manager.list').read_bytes()
+        mode,digest=module.FILES[module.INFO+'list']
+        self.assertEqual(hashlib.sha256(fixture).hexdigest(),digest)
+        with tempfile.TemporaryDirectory() as temporary:
+            path=Path(temporary)/'sphere-manager.list';path.write_bytes(fixture);path.chmod(mode)
+            real_lstat=os.lstat;real_fstat=os.fstat
+            def root_metadata(value):
+                fields={name:getattr(value,name) for name in ('st_dev','st_ino','st_size','st_mode','st_uid','st_gid','st_nlink','st_mtime_ns','st_ctime_ns')}
+                fields.update(st_uid=0,st_gid=0);return types.SimpleNamespace(**fields)
+            with mock.patch.object(module.os,'lstat',side_effect=lambda p:root_metadata(real_lstat(p))),mock.patch.object(module.os,'fstat',side_effect=lambda fd:root_metadata(real_fstat(fd))):
+                self.assertEqual(module.checked(str(path),mode,digest)[0],digest)
+                path.write_bytes(fixture+b'/etc/owner-fixture/locked-mchat.env\n')
+                before=os.stat(path)
+                with self.assertRaisesRegex(ValueError,'differs from the reviewed release'):
+                    module.checked(str(path),mode,digest)
+                after=os.stat(path)
+                self.assertEqual(module.identity(before),module.identity(after))
+                self.assertEqual(path.read_bytes(),fixture+b'/etc/owner-fixture/locked-mchat.env\n')
+
     def test_unsafe_file_metadata_never_opens_payload(self):
         for value in (metadata(mode=stat.S_IFREG|0o777),metadata(mode=stat.S_IFLNK|0o777),
                       metadata(mode=stat.S_IFREG|0o755,uid=1000),metadata(mode=stat.S_IFREG|0o755,gid=1000),

@@ -77,7 +77,8 @@ The next release renames the frontend package and command from `sphere-manager`
 to `agpc-manager 3.1.0-2`, paired with `medge 3.1.0-2`. The existing `sphere`
 shortcut points to the new command. A clean installed `sphere-manager 3.1.0-1`
 amd64 package is the only admitted predecessor: its native executable and
-package checksum record must match the reviewed release, its executable and
+package checksum record and DPKG removal file list must match the reviewed
+release, its executable and
 shortcut must retain sole package ownership, and it must have no conffiles,
 lifecycle hooks or service overrides. The installer checks this state before
 downloads and again under APT's lock, requires the exact reviewed replacement

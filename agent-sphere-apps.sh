@@ -458,9 +458,105 @@ if __name__=='__main__':
 CX_PREFLIGHT
 }
 
+# The released frontend owns no service, configuration or cleanup hooks.
+# Admit only its clean executable/shortcut state; removal must remain inert.
+classify_legacy_manager() {
+python3 - <<'MANAGER_PREFLIGHT'
+import hashlib
+import json
+import os
+import stat
+import subprocess
+import sys
+
+MANAGER_PACKAGE = 'sphere-manager'
+INFO = '/var/lib/dpkg/info/sphere-manager.'
+FILES = {
+    '/usr/bin/sphere-manager': (0o755, '85bb3fb568b30fbbcdbae1ddc04ace65e9a3c64e27577b56b6d147d59b2d5b42'),
+    INFO + 'md5sums': (0o644, '92be0d236d0be35a9946b0be1e15d762d47758de3af305512be1ab38aa73a8b2'),
+}
+
+
+def identity(value):
+    return (value.st_dev, value.st_ino, value.st_size, value.st_mode,
+            value.st_uid, value.st_gid, value.st_nlink,
+            value.st_mtime_ns, value.st_ctime_ns)
+
+
+def checked(path, mode, expected):
+    before = os.lstat(path)
+    if (not stat.S_ISREG(before.st_mode) or before.st_uid != 0 or before.st_gid != 0
+            or stat.S_IMODE(before.st_mode) != mode or before.st_nlink != 1 or before.st_size > 1048576):
+        raise ValueError('unsafe legacy Manager file metadata: ' + path)
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NOATIME)
+    try:
+        if identity(before) != identity(os.fstat(fd)):
+            raise ValueError('legacy Manager file changed during inspection: ' + path)
+        with os.fdopen(fd, 'rb', closefd=False) as stream:
+            data = stream.read(1048577)
+        if len(data) > 1048576:
+            raise ValueError('legacy Manager file exceeds the inspection limit: ' + path)
+        digest = hashlib.sha256(data).hexdigest()
+        if identity(before) != identity(os.fstat(fd)):
+            raise ValueError('legacy Manager file changed during inspection: ' + path)
+    finally:
+        os.close(fd)
+    if digest != expected:
+        raise ValueError('legacy Manager file differs from the reviewed release: ' + path)
+    return (digest, identity(before))
+
+
+def sole_owner(path):
+    result = subprocess.run(['dpkg-query', '-S', path], capture_output=True, text=True)
+    if result.returncode or result.stdout != MANAGER_PACKAGE + ': ' + path + '\n':
+        raise ValueError('legacy Manager lacks sole package ownership: ' + path)
+
+
+def classify():
+    result = subprocess.run(['dpkg-query', '-W', '-f=${Version}|${Architecture}|${Status}|${Conffiles}',
+                             MANAGER_PACKAGE], capture_output=True, text=True)
+    if ((result.returncode == 1 and not result.stdout) or
+            (result.returncode == 0 and result.stdout == '||unknown ok not-installed|')):
+        return 'absent'
+    if result.returncode or result.stdout != '3.1.0-1|amd64|install ok installed|':
+        raise ValueError('legacy Manager requires the reviewed 3.1.0-1 amd64 installed state without conffiles')
+    for name in ('preinst', 'postinst', 'prerm', 'postrm', 'conffiles'):
+        if os.path.lexists(INFO + name):
+            raise ValueError('legacy Manager has unexpected configuration or lifecycle hooks')
+    for directory in ('/etc/systemd/system', '/run/systemd/system', '/usr/lib/systemd/system', '/lib/systemd/system'):
+        for suffix in ('.service', '.service.d'):
+            if os.path.lexists(directory + '/sphere-manager' + suffix):
+                raise ValueError('legacy Manager has an unsupported service or override')
+    files = {path: checked(path, mode, digest) for path, (mode, digest) in FILES.items()}
+    sole_owner('/usr/bin/sphere-manager')
+    path = '/usr/bin/sphere'
+    before = os.lstat(path)
+    if (not stat.S_ISLNK(before.st_mode) or before.st_uid != 0 or before.st_gid != 0
+            or os.readlink(path) != 'sphere-manager'):
+        raise ValueError('legacy Manager shortcut differs from the reviewed release')
+    if identity(before) != identity(os.lstat(path)):
+        raise ValueError('legacy Manager shortcut changed during inspection')
+    sole_owner(path)
+    files[path] = ('sphere-manager', identity(before))
+    digest = hashlib.sha256(json.dumps({'record': result.stdout, 'files': files},
+                                      sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    return 'installed:sha256:' + digest
+
+
+if __name__ == '__main__':
+    try:
+        print(classify())
+    except (OSError, ValueError) as error:
+        print('AGPC Manager migration preflight refused: ' + str(error) +
+              '. Inspect nonsecret package/file metadata; do not force removal.', file=sys.stderr)
+        sys.exit(1)
+MANAGER_PREFLIGHT
+}
+
 legacy_state=$(classify_legacy_chatd) || fail 'Legacy preflight failed. No download or package change was started.'
 mcp_state=$(classify_legacy_mcp) || fail 'MCP preflight failed. No download or package change was started.'
 cx_state=$(classify_legacy_cx) || fail 'CX preflight failed. No download or package change was started.'
+manager_state=$(classify_legacy_manager) || fail 'Manager preflight failed. No download or package change was started.'
 
 agentsphere_apt_bootstrap || fail 'Signed APT bootstrap failed. Package installation was not started.'
 
@@ -493,10 +589,11 @@ fi
 # APT protocol v3 is checked again under APT's lock before any DPKG action.
 {
 printf '%s\n' '#!/bin/bash' 'set -euo pipefail'
-declare -f classify_legacy_chatd classify_legacy_mcp classify_legacy_cx
+declare -f classify_legacy_chatd classify_legacy_mcp classify_legacy_cx classify_legacy_manager
 printf 'expected_legacy_state=%q\n' "$legacy_state"
 printf 'expected_mcp_state=%q\n' "$mcp_state"
 printf 'expected_cx_state=%q\n' "$cx_state"
+printf 'expected_manager_state=%q\n' "$manager_state"
 cat <<'GUARD'
 fail() { printf 'Agent Computer transaction refused: %s\n' "$*" >&2; exit 1; }
 legacy_state=$(classify_legacy_chatd) || fail 'legacy ownership is unsupported at transaction time'
@@ -505,6 +602,8 @@ mcp_state=$(classify_legacy_mcp) || fail 'legacy MCP state is unsupported at tra
 [[ $mcp_state == "$expected_mcp_state" ]] || fail 'legacy MCP state changed after preflight'
 cx_state=$(classify_legacy_cx) || fail 'legacy CX state is unsupported at transaction time'
 [[ $cx_state == "$expected_cx_state" ]] || fail 'legacy CX state changed after preflight'
+manager_state=$(classify_legacy_manager) || fail 'legacy Manager state is unsupported at transaction time'
+[[ $manager_state == "$expected_manager_state" ]] || fail 'legacy Manager state changed after preflight'
 [[ ${APT_HOOK_INFO_FD:-} == 0 ]] || fail 'APT action protocol is unavailable'
 IFS= read -r header || fail 'empty action protocol'
 [[ $header == 'VERSION 3' ]] || fail 'APT action protocol version 3 is required'
@@ -525,6 +624,10 @@ fi
 if [[ $mcp_state == installed:* ]]; then
     replacement[mote-bridge-mcp]=mote-mcpd
     reviewed_old[mote-bridge-mcp]=3.0.0-2
+fi
+if [[ $manager_state == installed:sha256:* ]]; then
+    replacement[sphere-manager]=agpc-manager
+    reviewed_old[sphere-manager]=3.1.0-1
 fi
 IFS=, read -r -a cx_predecessors <<< "${cx_state%%;*}"
 for entry in "${cx_predecessors[@]}"; do
@@ -547,7 +650,7 @@ while IFS= read -r line; do
         removed[$name]=true
     elif [[ $action == '**CONFIGURE**' || $action == /*.deb ]]; then
         [[ $name != mote-chatd || $legacy_state == retention:* ]] || fail 'retention is not admitted for this ownership state'
-        case "$name" in mote-sync|mote-syncd|cx-node|cx-agent|codex-mesh|model-node|model-grid|mcp-run|ultra-mcp-ssh|mote-bridge-mcp) fail "retired package $name" ;; esac
+        case "$name" in sphere-manager|mote-sync|mote-syncd|cx-node|cx-agent|codex-mesh|model-node|model-grid|mcp-run|ultra-mcp-ssh|mote-bridge-mcp) fail "retired package $name" ;; esac
         [[ $new != - ]] || fail 'missing target version'
         [[ $old == - ]] || dpkg --compare-versions "$new" ge "$old" || fail "downgrade of $name"
         if [[ -n ${floor[$name]:-} ]]; then
@@ -596,6 +699,13 @@ if [[ -n ${removed[mote-bridge-mcp]:-} ]]; then
     [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected MCP artifact architecture'
     printf '%s  %s\n' b4b1b640cb32f087af0a22b40f3edc85562bc9c87551ea60b7f6f7d80ca5fcf7 "$path" | sha256sum --check --status || fail 'MCP artifact changed'
 fi
+if [[ -n ${removed[sphere-manager]:-} ]]; then
+    [[ ${installed[agpc-manager]:-} == 3.1.0-2 ]] || fail 'Manager migration requires exact agpc-manager 3.1.0-2'
+    path=${artifacts[agpc-manager]}
+    [[ ! -L $path && -f $path ]] || fail 'unsafe Manager artifact'
+    [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected Manager artifact architecture'
+    printf '%s  %s\n' PENDING_REVIEWED_AGPC_MANAGER_SHA256 "$path" | sha256sum --check --status || fail 'Manager artifact changed'
+fi
 GUARD
 } > "$temporary/guard"
 chmod 0700 "$temporary/guard"
@@ -619,6 +729,9 @@ while read -r action package rest; do
                 'mote-bridge-mcp:[3.0.0-2]'*)
                     [[ $mcp_state == installed:* ]] || fail 'Refusing unreviewed MCP package removal.'
                     removed[mote-bridge-mcp]=mote-mcpd ;;
+                'sphere-manager:[3.1.0-1]'*)
+                    [[ $manager_state == installed:sha256:* ]] || fail 'Refusing unreviewed Manager package removal.'
+                    removed[sphere-manager]=agpc-manager ;;
                 'mote-sync:[1.1.0-2]'*) removed[mote-sync]=mote-vault-sync ;;
                 'mote-syncd:[1.1.0-2]'*) removed[mote-syncd]=mote-vault-syncd ;;
                 cx-node:*|cx-agent:*|codex-mesh:*)

@@ -73,6 +73,18 @@ APT asks for confirmation. A piped installer reads `/dev/tty`; headless use
 requires explicit `--yes`. After successful installation, the installer prints
 the result and exits. Open `/usr/bin/agpc-manager` manually when needed.
 Package services retain their normal systemd lifecycle.
+The next release renames the frontend package and command from `sphere-manager`
+to `agpc-manager 3.1.0-2`, paired with `medge 3.1.0-2`. The existing `sphere`
+shortcut points to the new command. A clean installed `sphere-manager 3.1.0-1`
+amd64 package is the only admitted predecessor: its native executable and
+package checksum record must match the reviewed release, its executable and
+shortcut must retain sole package ownership, and it must have no conffiles,
+lifecycle hooks or service overrides. The installer checks this state before
+downloads and again under APT's lock, requires the exact reviewed replacement
+artifact in the same transaction, and rejects retired package reinstallation.
+An absent predecessor or its exact empty DPKG relationship record permits a
+fresh or repeated install; residual conffile and partial states are refused.
+
 The byte-identical `agent-sphere-apps.sh` asset remains a compatibility entry.
 
 ```sh

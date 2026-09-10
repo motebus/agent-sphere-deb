@@ -25,7 +25,7 @@ class PackageTests(unittest.TestCase):
 
     def test_unreviewed_migration_artifacts_block_release(self):
         if "PENDING_REVIEWED_" in (ROOT / "agent-sphere-apps.sh").read_text():
-            with self.assertRaisesRegex(ValueError, "committed-main MCP and CX"):
+            with self.assertRaisesRegex(ValueError, "committed-main migration artifacts"):
                 package.manifest(ROOT / "dist")
 
     def test_reproducible_build(self):

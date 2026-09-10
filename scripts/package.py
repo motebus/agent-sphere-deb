@@ -144,7 +144,7 @@ def digest(path):
 
 def manifest(out):
     if "PENDING_REVIEWED_" in (ROOT / "agpc.sh").read_text():
-        raise ValueError("release blocked: exact committed-main MCP and CX migration artifacts are required")
+        raise ValueError("release blocked: exact committed-main migration artifacts are required")
     path = out / ("agent-sphere_" + control()["Version"] + "_all.deb")
     verify(path)
     if (ROOT / "agpc.sh").read_bytes() != (ROOT / "agent-sphere-apps.sh").read_bytes():

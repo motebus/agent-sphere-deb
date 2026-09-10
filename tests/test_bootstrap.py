@@ -8,7 +8,7 @@ class Bootstrap(unittest.TestCase):
   self.assertEqual(canonical,(ROOT/'agent-sphere-apps.sh').read_bytes())
   text=canonical.decode()
   platform=text.index("\nagentsphere_platform_check || fail")
-  guards=[text.index('\n'+name+'=$(classify_legacy_') for name in ['legacy_state','mcp_state','cx_state']]
+  guards=[text.index('\n'+name+'=$(classify_legacy_') for name in ['legacy_state','mcp_state','cx_state','manager_state']]
   bootstrap=text.index("\nagentsphere_apt_bootstrap || fail")
   self.assertTrue(platform<min(guards) and max(guards)<bootstrap<text.index('\nobsidian='))
   self.assertNotIn('agentsphere_launch_manager',text)

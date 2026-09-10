@@ -5,6 +5,7 @@ import subprocess
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("package", ROOT / "scripts/package.py")
@@ -24,9 +25,12 @@ class PackageTests(unittest.TestCase):
         self.assertNotIn("Suggests", package.control())
 
     def test_unreviewed_migration_artifacts_block_release(self):
-        if "PENDING_REVIEWED_" in (ROOT / "agent-sphere-apps.sh").read_text():
-            with self.assertRaisesRegex(ValueError, "committed-main migration artifacts"):
-                package.manifest(ROOT / "dist")
+        with tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:
+            source = Path(tmp)
+            (source / "agpc.sh").write_text("PENDING_REVIEWED_FIXTURE_SHA256")
+            with mock.patch.object(package, "ROOT", source):
+                with self.assertRaisesRegex(ValueError, "committed-main migration artifacts"):
+                    package.manifest(source / "dist")
 
     def test_reproducible_build(self):
         with tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:

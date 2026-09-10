@@ -704,7 +704,7 @@ if [[ -n ${removed[sphere-manager]:-} ]]; then
     path=${artifacts[agpc-manager]}
     [[ ! -L $path && -f $path ]] || fail 'unsafe Manager artifact'
     [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected Manager artifact architecture'
-    printf '%s  %s\n' PENDING_REVIEWED_AGPC_MANAGER_SHA256 "$path" | sha256sum --check --status || fail 'Manager artifact changed'
+    printf '%s  %s\n' cc1a1f2727dbf91c1cee3ffac7d273131f22e0f2cc1ade787173bf7ebbfae9fc "$path" | sha256sum --check --status || fail 'Manager artifact changed'
 fi
 GUARD
 } > "$temporary/guard"

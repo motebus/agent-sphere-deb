@@ -98,3 +98,20 @@ sys.exit(subprocess.call([{self.stat!r}, *sys.argv[1:-1], {str(self.target)!r}])
         self.rejected_before_download()
         self.target.symlink_to('mote-chatd-deb.env')
         self.rejected_before_download()
+
+    def test_actual_dpkg_relationship_only_records_are_absent_without_mutation(self):
+        tree=self.fixture.root/'relationship-package';control=tree/'DEBIAN';control.mkdir(parents=True)
+        names=['mote-chatd','mote-bridge-mcp','cx-node','cx-agent','codex-mesh']
+        (control/'control').write_text('Package: fixture-relationships\nVersion: 1.0\nArchitecture: all\nMaintainer: Fixture <fixture@example.invalid>\nDescription: Native absent relationship fixture\nConflicts: '+', '.join(names)+'\nReplaces: '+', '.join(names)+'\n')
+        deb=self.fixture.root/'relationships.deb'
+        subprocess.run(['dpkg-deb','--build',str(tree),str(deb)],check=True,capture_output=True)
+        self.run_dpkg('--install',str(deb))
+        for name in names:
+            result=subprocess.run([self.query,'--admindir='+str(self.root/'var/lib/dpkg'),'-W','-f=${Version}\n${Architecture}\n${Status}\n${Conffiles}',name],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(result.stdout,'\n\nunknown ok not-installed\n')
+        status=self.root/'var/lib/dpkg/status';before=status.read_bytes()
+        result=self.fixture.run_installer('--yes');self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(status.read_bytes(),before)
+        self.assertFalse(self.target.exists())
+        self.assertNotIn('mote-chatd=2.0.0-6',self.fixture.calls()[-1])

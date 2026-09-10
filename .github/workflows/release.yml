@@ -16,11 +16,18 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+      - name: Install namespace verification dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends bubblewrap gnupg
       - name: Build and verify package and installer
+        env:
+          AGPC_BOOTSTRAP_NAMESPACE_SUDO: "1"
         run: |
           python3 scripts/package.py build
           python3 -m unittest discover -s tests -v
-          bash -n agent-sphere-apps.sh
+          bash -n agpc.sh
+          cmp agpc.sh agent-sphere-apps.sh
       - name: Bind source artifacts
         run: |
           python3 scripts/package.py manifest

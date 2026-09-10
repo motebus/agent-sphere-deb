@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+# Native Debian systemd lifecycle, limited to this declarative target.
+case "$1" in
+  configure|abort-upgrade|abort-deconfigure|abort-remove)
+    deb-systemd-helper unmask agentsphere.target >/dev/null || true
+    if deb-systemd-helper --quiet was-enabled agentsphere.target; then
+      deb-systemd-helper enable agentsphere.target >/dev/null || true
+    else
+      deb-systemd-helper update-state agentsphere.target >/dev/null || true
+    fi
+    if [ -z "${DPKG_ROOT:-}" ] && [ -d /run/systemd/system ]; then
+      systemctl --system daemon-reload >/dev/null || true
+      deb-systemd-invoke start agentsphere.target >/dev/null || true
+    fi
+    ;;
+esac

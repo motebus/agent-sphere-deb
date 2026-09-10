@@ -1,137 +1,144 @@
 # Agent Sphere
 
-Agent Sphere is the system substrate that turns a Linux host into an
-UltraOne-connected Agent Computer.
+`agent-sphere 0.2.0-1` is the headless core of the four-package Agent Sphere
+system. It composes Agent intelligence, model execution, CX-Mesh and Mote
+through native APT/DPKG dependencies.
 
 ```text
-Agent Computer = agent-sphere.deb + agent-apps.deb
-
-agent-sphere.deb
-├── sphered               native MoteBus/DC foundation
-├── moted                 Host Mote Endpoint and admitted local broker
-├── mote-proxy            outbound Mote access
-├── mote-transportd       D/MSG runtime
-├── medge                 MBox + MDrive + MCP
-└── mlink                 local device and I/O mechanics
+agent-sphere    Core: AGOS, CX-Mesh, model execution, Mote and local I/O
+agent-ultra     Redixs, local Comm/Telegram, Obsidian and vault sync
+sphere-manager Dedicated native TUI/CLI backed by MEdge management
+agent-apps     Jujue, iAgent, SS-WebOS, MDesk and UChat
 ```
 
-The metapackage owns composition. It contains documentation and six direct
-Debian dependencies, with no daemon, hooks, updater or package manager.
-APT/DPKG resolve packages; each component owns its systemd lifecycle.
+Core contains no TUI and does not require the manager or desktop applications.
+Sphere Manager owns its frontend; MEdge owns the headless management backend
+and existing MBox/MDrive/MCP I/O implementation. MEdge is reached through the
+manager package dependency, and its admitted I/O still uses MoteD and MLINK.
+Exiting the management UI must not stop the backend or Core.
 
-MEdge is one native runtime containing MBox command admission and dispatch,
-MDrive local storage, and a fixed MCP extension. Its MCP extension uses the
-separate Apps-owned Mote Bridge MCP. AGOS reaches admitted local operations
-through MoteD. MLINK owns the device mechanics below MEdge.
+## Core dependency baseline
 
-## Package baseline
-
-| Component | Minimum version |
+| Required component | Minimum version |
 | --- | --- |
 | sphered | 4.1.0-2 |
 | moted | 3.6.0-2 |
 | mote-proxy | 2.0.0-5 |
 | mote-transportd | 2.0.0-6 |
-| medge | 3.0.0-3 |
 | mlink | 2.1.0-1 |
+| mote-secd | 1.0.0-2 |
+| agos | 2.1.0-1 |
+| model-router | 0.1.0-1 |
+| model-llm | 0.1.0-3 |
+| mote-mcpd | 3.0.0-3 |
+| cx-mesh | 1.1.0-1 |
 
-`component-baseline.json` records these floors. Exact component artifacts and
-source-build provenance belong to the coordinated
-[MoteBus distribution](https://github.com/motebus/download).
-The initial component set targets Ubuntu amd64. `Architecture: all` describes
-this documentation-only metapackage, not every component's platform support.
+There are no `Recommends` or `Suggests`. This metapackage owns composition and
+owns documentation and `agentsphere.target`. Native Debian helpers enable
+the target for boot and respect its existing disable or mask; no manager or
+TUI is started by Core. APT adds `init-system-helpers (>= 1.54)` for that
+lifecycle. Each dependency owns its executable, service and configuration. `mote-mcpd` retains on-demand stdio
+`mote mcp`; its package rename creates no daemon or new transport identity.
 
-## Install both entry packages
+This source is an **unreleased four-package candidate**. Native Mote MCPd,
+CX-Mesh artifacts must satisfy the new floors, and the
+four-entry aggregate additionally requires actual Redixs, Comm, Jujue, iAgent,
+MEdge management and Sphere Manager artifacts. No alias or empty package may
+substitute for those runtimes. Pending exact migration hashes block release
+manifest generation. Existing published tags remain immutable.
 
-The second entry package, `agent-apps`, composes AGOS, Model Router, Model LLM,
-CX Agent, SS-WebOS, MDesk, Obsidian, UChat, Mote Bridge MCP, the Vault Sync pair,
-Mote SecD and Codex Mesh. AGOS runs agents and governs agent/model resources;
-Model Router combines routing and resource scheduling; Model LLM owns inference.
+## Headless startup
 
-After the coordinated release is available in the configured signed MoteBus
-APT repository, download and verify the release installer, then run:
+`agentsphere.target` wants `sphered.service`, `moted.service`,
+`mote-proxy.service`, `mote-transportd.service`, `mlink.service`,
+`mote-secd.service`, `agosd.service` and `model-router.service`. It is ordered
+after `basic.target` and enabled for `multi-user.target`. Starting the target
+requests these required Core units even if they were previously only disabled;
+explicit service masks remain authoritative. It does not add `PartOf` or
+reverse dependencies from Core to the manager, Ultra, or a desktop.
+
+Model LLM and CX-Mesh execution remain separately owner-enabled. AGPC means
+Agent Computer; CX-Mesh connects authorized AGPC peers without changing their
+existing identities. A running target is not a readiness assertion: configured
+identity, admission and live owner health determine usable capabilities.
+
+## Complete installation and migration
+
+The canonical `agpc.sh` installer requests all four entries
+in one APT transaction: Core `0.2.0-1`, Ultra `0.1.0-1`, Sphere Manager
+`3.1.0-1` and Apps `0.2.0-1`. It acquires the pinned unmodified official Obsidian
+amd64 DEB, verifies its SHA-256 and Debian metadata, and supplies it to the
+same transaction. Obsidian belongs to Ultra and is not rehosted by MoteBus.
+APT asks for confirmation. A piped installer reads `/dev/tty`; headless use
+requires explicit `--yes`. After a successful interactive installation,
+`/usr/bin/sphere-manager` opens on the controlling terminal; `--yes` skips the UI.
+The byte-identical `agent-sphere-apps.sh` asset remains a compatibility entry.
 
 ```sh
-sudo bash ./agent-sphere-apps.sh
+curl -fsSL https://motebus.github.io/download/agpc.sh | sudo bash
 ```
 
-The installer downloads the pinned unmodified official Obsidian DEB, checks
-its SHA-256 and Debian metadata, and supplies it to the same APT transaction
-as `agent-sphere` and `agent-apps`. MoteBus does not redistribute Obsidian.
-APT asks for confirmation; `--yes` supports unattended installation.
-The installer fails before DPKG if dependencies cannot resolve or the reviewed
-transaction boundary is violated. It does not select an Obsidian Vault,
-activate a plugin, provision identity or grant runtime access.
+Ubuntu 24.04 and 26.04 amd64 are supported. The bootstrap verifies the fixed
+public archive key SHA-256 and primary fingerprint and creates only missing
+reviewed APT source/key files. Existing exact files retain their bytes and
+metadata. Custom or ambiguous sources, keys and symlink destinations are
+refused. Required native OS tools, Python 3 with `tomllib`, and GPG must already
+be available; a missing prerequisite fails before mutation.
 
-The reviewed Vault Sync, CX Agent, Model LLM and ordinary MoteChatD
-replacements may remove their former package names. The public CX baseline
-`0.3.3-6` and the previously reviewed `0.3.4-1~local20260909` migration are
-supported. The public baseline additionally requires its exact installed
-removal hooks and the exact published `cx-agent 0.3.4-2` artifact. An APT
-protocol-v3 hook checks the final transaction under APT's lock and rejects
-unrelated removals, retired package installation and downgrades.
+Before any download, the installer classifies legacy transport, MCP and CX state.
+The same classifiers run again under APT's lock. Unknown package metadata,
+hooks, helper bytes, unsafe identity metadata or customized old system MCP
+entries stop before DPKG. Diagnostics do not print identity or configuration
+values. Python's standard TOML reader is used only by this installer preflight;
+it introduces no installed Python daemon or alternate package manager.
 
-Before downloading, the installer distinguishes three transport states:
+Ordinary `mote-chatd 2.0.0-4` owns only its normal env conffile and can be
+replaced by the exact transport `2.0.0-6` artifact after its removal hooks are
+verified. A protected old locked conffile instead retains the exact
+`mote-chatd 2.0.0-6` documentation guard. That record must not be removed or
+purged. Fresh hosts require no retention package. The explicit `mote-chatd-`
+selector prevents APT from selecting the retention candidate on the ordinary
+path. Residual records and repeated installation are supported within the
+exact reviewed ownership contract.
 
-- A fresh host has no `mote-chatd` record and needs no retention package.
-- A protected legacy conffile owner keeps a documentation-only `mote-chatd`
-  record. That record cannot be removed or purged while it protects the file.
-- Ordinary published `mote-chatd 2.0.0-4` on amd64 owns only its normal
-  `mote-chatd-deb.env`; its locked identity was created outside DPKG ownership.
-  With the reviewed removal hooks, an intact safe identity and a complete
-  installed or residual state, it migrates directly to the exact published
-  `mote-transportd 2.0.0-6` artifact. The installer passes `mote-chatd-` to APT
-  so the unrelated retention candidate is not selected. Only the installed
-  ordinary runtime may be removed, and only with its replacement present.
+The MCP rename supports exact `mote-bridge-mcp 3.0.0-2` metadata and its reviewed
+removal hook/helper. The old hook deletes its managed system Codex table, so
+only stock or absent old and new entries are admitted. Existing unrelated
+system configuration, user/project configuration, locked topology and receipts
+remain preserved. Residual obsolete conffile records require the exact
+installed `mote-mcpd` successor to own the normal path. No incidental old-record
+purge is performed. The runtime keeps legacy configuration/provider/helper
+paths while its managed Codex server entry uses the new package name.
 
-The same classifier runs again under APT's lock. Changed ownership, unknown
-versions or hooks, incomplete package states, and missing, symlinked or
-unsafely owned/writable topology stop before DPKG. Diagnostics request package
-metadata, never topology values. The ordinary path does not weaken retention
-protection, edit DPKG's database or modify the identity file. Existing normal
-configuration, topology, receipt and journal files keep their contents and
-metadata, including inode and ctime. An absent creation receipt may be created
-by the unchanged component bootstrap.
+The CX-Mesh consolidation admits only reviewed `cx-node 0.3.3-6` or the
+`0.3.4-1~local20260909` preview, `cx-agent 0.3.4-2`/`0.3.4-3`, and
+`codex-mesh 1.0.0-1`/`1.0.0-2` predecessors. Exact cleanup hooks and transferred
+conffiles are checked, as are existing CX/Mesh identity and configuration
+metadata. Custom predecessor unit overrides and nonempty drop-ins are refused
+before APT; explicit `/dev/null` masks are preserved. Residual records require
+the successor to be the sole current owner of transferred conffiles. The same
+transaction must install the exact reviewed CX-Mesh artifact. Vault Sync and
+Model LLM renames remain bounded replacement pairs. APT protocol-v3 checks reject unrelated
+removals, retired package installation, downgraded components and any missing
+replacement. Changes between preflight and the locked transaction are denied.
+Identity files are never edited, diverted or assigned through manual DPKG
+metadata changes. Their bytes, inode, ctime and existing access metadata must
+survive component migration. An absent bootstrap receipt may be created by
+its owning component's existing policy.
 
-A piped installer reads interactive APT confirmation from the controlling
-terminal. Without a terminal it refuses installation unless `--yes` was
-explicitly supplied; piping the script does not grant consent.
+Dropping a former dependency does not authorize removing it or running
+`autoremove`. Removing Core or Ultra stops and removes only its startup target
+and documentation; it does not stop or remove dependency services or data. The historical
+full-bundle uninstaller cannot safely remove this composition and must stop
+before mutation. Product removal needs a separately reviewed lifecycle and
+data-preservation plan.
 
-Removing a composition package removes its documentation. Component removal
-and user-data preservation need the matching signed uninstall contract. The
-legacy full-bundle uninstaller cannot remove this composition and must stop
-before mutation. Do not purge a protected configuration ownership record.
+## Verification and readiness
 
-## Acceptance
-
-Package installation and runtime readiness are separate checks. Version
-0.1.0-8 requires MEdge 3.0.0-3, which fixes the provider socket group on hosts
-where MoteD has a distinct primary group. Re-running the permanent installer
-on a v7 host therefore selects that MEdge update through the new dependency
-floor. It does not certify Sphere Ready.
-MBox policy and individual I/O endpoints require explicit owner admission.
-MDrive initially supports bounded local objects, not advanced XS operations,
-remote MDrive publication or automatic access to a real Obsidian Vault.
-
-Sphere Ready additionally requires operational transport and host identity,
-bidirectional D/MSG with the intended UltraOne peer, admitted local I/O and
-recovery after reboot. AGOS/model backend configuration and actual inference
-are separate Apps acceptance. These are not implied by successful packaging.
-
-## Build and verification
-
-`tests/test_legacy_dpkg.py` uses real private-root DPKG records; other installer
-I/O is mocked. `scripts/check-installer-transaction.py` checks actual APT action
-hooks with disposable packages. `scripts/check-chatd-migration.py` additionally
-accepts the three checksum-pinned published old/runtime/retention DEBs via
-`--old-deb`, `--runtime-deb` and `--retention-deb`. It tests ordinary installed
-and residual migration, protected retention, repeated installation, old-record
-purge, ownership drift and artifact drift. All existing transport files retain
-SHA-256, inode, mtime, ctime, UID/GID, mode and link count. These offline tests
-use empty OS dependency fixtures and a strict systemd observation mock in a
-single-UID namespace; they do not prove live service behavior or distinct
-service-account isolation. No host package database or service is changed.
-
+Package installation does not establish operational identity, source admission,
+model inference, Telegram delivery, desktop availability, local I/O or reboot
+recovery. Existing runtime profiles and configuration gates remain truthful;
+MDrive's bounded local object profile is not automatic access to a real vault.
 
 ```sh
 python3 scripts/package.py build
@@ -139,9 +146,10 @@ python3 -m unittest discover -s tests -v
 python3 scripts/check-installer-transaction.py
 ```
 
-Build tooling is not a runtime dependency. CI verifies reproducible package
-bytes, exact composition, absence of hooks/runtime payload, and installer
-checks. The offline transaction fixture uses real APT/DPKG in an isolated
-namespace. The aggregate publisher owns signed-index dependency resolution
-and clean Ubuntu installation gates before public APT activation. Existing
-published release tags remain immutable.
+Metadata-only APT fixtures prove Core dependency closure without manager/UI
+packages. Installer unit tests exercise four-entry selection and exact
+preflight policies. Native DPKG/APT migration fixtures use checksum-pinned old
+and new artifacts in disposable namespaces; mocked service observations do
+not establish live readiness. The signed aggregate publisher owns actual
+full-cohort dependency resolution, public artifact verification and native
+host acceptance before activation.

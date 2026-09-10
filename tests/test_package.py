@@ -13,6 +13,21 @@ spec.loader.exec_module(package)
 
 
 class PackageTests(unittest.TestCase):
+    def setUp(self):
+        (ROOT / "build").mkdir(exist_ok=True)
+
+    def test_core_excludes_manager_ui_and_local_ultra(self):
+        self.assertEqual(len(package.NAMES), 11)
+        self.assertTrue({"agos", "model-router", "model-llm", "cx-mesh", "mote-mcpd"}.issubset(package.NAMES))
+        self.assertFalse({"medge", "sphere-manager", "agent-apps", "agent-ultra", "mdesk", "ss-webos", "obsidian"}.intersection(package.NAMES))
+        self.assertNotIn("Recommends", package.control())
+        self.assertNotIn("Suggests", package.control())
+
+    def test_unreviewed_migration_artifacts_block_release(self):
+        if "PENDING_REVIEWED_" in (ROOT / "agent-sphere-apps.sh").read_text():
+            with self.assertRaisesRegex(ValueError, "committed-main MCP and CX"):
+                package.manifest(ROOT / "dist")
+
     def test_reproducible_build(self):
         with tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:
             first = package.build(Path(tmp) / "first")
@@ -21,11 +36,11 @@ class PackageTests(unittest.TestCase):
 
     def test_extra_application_dependency_rejected(self):
         altered = package.control()
-        altered["Depends"] += ", agos"
+        altered["Depends"] += ", mdesk"
         with self.assertRaises(ValueError):
             package.check_control(altered)
 
-    def test_hooks_and_runtime_payload_rejected(self):
+    def test_modified_hooks_and_runtime_payload_rejected(self):
         for extra in ["DEBIAN/postinst", "usr/bin/sphere-manager"]:
             with self.subTest(extra=extra), tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:
                 original = package.build(Path(tmp) / "base")

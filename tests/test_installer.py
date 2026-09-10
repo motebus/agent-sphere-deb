@@ -13,7 +13,7 @@ import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-INSTALLER = ROOT / "agent-sphere-apps.sh"
+INSTALLER = ROOT / "agpc.sh"
 BASH = shutil.which("bash")
 
 
@@ -22,6 +22,15 @@ class InstallerTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        # Separate shell orchestration from the real bootstrap's root/OS checks.
+        # The production fragment has its own namespace tests; no runtime test
+        # switch is introduced into the public installer.
+        self.installer = self.root / "agpc.sh"
+        text = INSTALLER.read_text()
+        text = text.replace("agentsphere_platform_check || fail 'Platform preflight failed. No package or source change was started.'", ": # platform checked by isolated bootstrap tests")
+        text = text.replace("agentsphere_apt_bootstrap || fail 'Signed APT bootstrap failed. Package installation was not started.'", ": # bootstrap checked by isolated bootstrap tests")
+        text = text.replace('if ! agentsphere_launch_manager "${confirmation[@]}"; then', 'if ! true; then')
+        self.installer.write_text(text)
         self.bin = self.root / "bin"
         self.bin.mkdir()
         self.log = self.root / "apt-calls.jsonl"
@@ -58,7 +67,8 @@ print('unexpected' if os.environ.get('APT_TEST_OBSIDIAN') == 'bad-control' else 
 """)
         self.write_fake("dpkg-query", """
 import os, sys
-if sys.argv[-1] == 'cx-node':print('0.3.3-6|amd64|install ok installed|');sys.exit(0)
+if sys.argv[-1] == 'mote-bridge-mcp':sys.exit(1)
+if sys.argv[-1] in ('cx-node','cx-agent','codex-mesh'):sys.exit(1)
 value=os.environ.get('APT_TEST_CHATD', '')
 if 'Architecture' in sys.argv[2]:
     print('amd64\\n'+('deinstall ok config-files' if value.startswith('config-files') else 'install ok installed'))
@@ -89,6 +99,8 @@ if stage == 'install':
     protocol = 'VERSION 3\\nAPT::Architecture=amd64\\n\\n' + os.environ.get('APT_TEST_ACTIONS', '')
     final_env=dict(os.environ, APT_HOOK_INFO_FD='0')
     if 'APT_TEST_FINAL_CHATD' in os.environ:final_env['APT_TEST_CHATD']=os.environ['APT_TEST_FINAL_CHATD']
+    if 'APT_TEST_FINAL_MCP' in os.environ:final_env['APT_TEST_MCP']=os.environ['APT_TEST_FINAL_MCP']
+    if 'APT_TEST_FINAL_CX' in os.environ:final_env['APT_TEST_CX']=os.environ['APT_TEST_FINAL_CX']
     result = subprocess.run([hook], input=protocol, text=True, env=final_env)
     if result.returncode == 0 and os.environ.get('APT_TEST_PROMPT'):
         print('Fixture APT: Continue? [y/N]',flush=True)
@@ -103,7 +115,7 @@ if stage == 'install':
         target.chmod(0o755)
 
     def run_installer(self, *args):
-        return subprocess.run([BASH, str(INSTALLER), *args], env=self.env,
+        return subprocess.run([BASH, str(self.installer), *args], env=self.env,
                               capture_output=True, text=True, check=False)
 
     def run_piped_installer(self, answer):
@@ -115,7 +127,7 @@ if stage == 'install':
         child=subprocess.Popen([BASH], stdin=subprocess.PIPE, stdout=slave, stderr=slave,
                                env=env, preexec_fn=terminal, pass_fds=(slave,))
         os.close(slave)
-        child.stdin.write(INSTALLER.read_bytes());child.stdin.close()
+        child.stdin.write(self.installer.read_bytes());child.stdin.close()
         output=b'';sent=False;deadline=time.monotonic()+20
         try:
             while time.monotonic()<deadline:
@@ -137,13 +149,61 @@ if stage == 'install':
     def calls(self):
         return [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
 
-    def test_default_keeps_apt_confirmation_and_installs_both(self):
+    def fake_mcp_classifier(self, state='installed:reviewed'):
+        # This isolates the shell transaction protocol; the real Python
+        # classifier is tested independently in test_mcp_preflight.py.
+        self.env['APT_TEST_MCP']=state
+        self.write_fake('python3', """
+import os,sys
+body=sys.stdin.read()
+assert 'def classify():' in body
+state=os.environ.get('APT_TEST_CX','absent') if 'MESH_FILES =' in body else os.environ.get('APT_TEST_MCP','absent')
+if state=='unreviewed':sys.exit(1)
+print(state)
+""")
+
+    def test_reviewed_mcp_replacement_is_required_in_same_transaction(self):
+        self.fake_mcp_classifier()
+        artifact=self.root/'mote-mcpd.deb';artifact.touch()
+        self.env['APT_TEST_PLAN']='Remv mote-bridge-mcp [3.0.0-2]\nInst mote-mcpd (3.0.0-3 stable)'
+        self.env['APT_TEST_ACTIONS']=(f'mote-mcpd - - none < 3.0.0-3 amd64 none {artifact}\n'
+            'mote-bridge-mcp 3.0.0-2 amd64 none > - - none **REMOVE**\n')
+        result=self.run_installer('--yes');self.assertEqual(result.returncode,0,result.stderr)
+        self.env['APT_TEST_ACTIONS']='mote-bridge-mcp 3.0.0-2 amd64 none > - - none **REMOVE**\n'
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.assertIn('lacks its reviewed replacement',result.stderr)
+
+    def test_custom_mcp_preflight_stops_before_download(self):
+        self.fake_mcp_classifier('unreviewed')
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.assertIn('MCP preflight failed',result.stderr)
+        self.assertEqual(self.calls(),[])
+        self.assertFalse(Path(str(self.log)+'.download').exists())
+
+    def test_mcp_state_drift_is_checked_under_apt_lock(self):
+        self.fake_mcp_classifier();self.env['APT_TEST_FINAL_MCP']='installed:changed'
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.assertIn('MCP state changed after preflight',result.stderr)
+
+    def test_mcp_old_version_retired_install_and_residual_removal_are_refused(self):
+        self.fake_mcp_classifier()
+        for action in ('mote-bridge-mcp 3.0.0-1 amd64 none > - - none **REMOVE**\n',
+                       'mote-bridge-mcp - - none < 3.0.0-2 amd64 none /cache/old.deb\n'):
+            self.env['APT_TEST_ACTIONS']=action
+            result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.fake_mcp_classifier('config-files')
+        self.env['APT_TEST_ACTIONS']='mote-bridge-mcp 3.0.0-2 amd64 none > - - none **REMOVE**\n'
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.env['APT_TEST_ACTIONS']=''
+        result=self.run_installer('--yes');self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_default_keeps_apt_confirmation_and_installs_all_four(self):
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:4], ['--simulate','install','agent-sphere=0.1.0-8','agent-apps=0.1.0-2'])
+        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-1','agent-ultra=0.1.0-1','sphere-manager=3.1.0-1','agent-apps=0.2.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
-        self.assertEqual(self.calls()[-1][-4:], ['install', *self.calls()[1][2:]])
+        self.assertEqual(self.calls()[-1][-6:], ['install', *self.calls()[1][2:]])
         self.assertNotIn('--yes', self.calls()[-1])
         self.assertIn('health are separate checks', result.stdout)
         self.assertFalse(list(self.root.glob('agent-sphere-apps.*')))
@@ -155,7 +215,7 @@ if stage == 'install':
 
     def test_headless_stdin_requires_explicit_yes(self):
         # A fresh session cannot inherit a developer terminal accidentally.
-        result=subprocess.run([BASH,str(INSTALLER)],env=self.env,stdin=subprocess.DEVNULL,
+        result=subprocess.run([BASH,str(self.installer)],env=self.env,stdin=subprocess.DEVNULL,
                               capture_output=True,text=True,start_new_session=True)
         self.assertNotEqual(result.returncode,0)
         self.assertIn('confirmation needs a terminal',result.stderr)
@@ -176,16 +236,18 @@ if stage == 'install':
         self.assertIn('mote-chatd-',self.calls()[-1])
 
     def test_exact_public_cx_baseline_is_checked_before_removal(self):
-        artifact=self.root/'cx-agent.deb';artifact.touch()
-        self.env['APT_TEST_PLAN']='Remv cx-node [0.3.3-6]\nInst cx-agent (0.3.4-2 stable)'
-        self.env['APT_TEST_ACTIONS']=(f'cx-agent - - none < 0.3.4-2 amd64 none {artifact}\n'
+        self.fake_mcp_classifier('absent')
+        self.env['APT_TEST_CX']='cx-node=0.3.3-6,cx-agent=-,codex-mesh=-;sha256:fixture'
+        artifact=self.root/'cx-mesh.deb';artifact.touch()
+        self.env['APT_TEST_PLAN']='Remv cx-node [0.3.3-6]\nInst cx-mesh (1.1.0-1 stable)'
+        self.env['APT_TEST_ACTIONS']=(f'cx-mesh - - none < 1.1.0-1 amd64 none {artifact}\n'
             'cx-node 0.3.3-6 amd64 none > - - none **REMOVE**\n')
         result=self.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
-        self.env['APT_TEST_HOOK']='changed'
+        self.env['APT_TEST_FINAL_CX']='changed'
         result=self.run_installer('--yes')
         self.assertNotEqual(result.returncode,0)
-        self.assertIn('unreviewed legacy CX',result.stderr)
+        self.assertIn('CX state changed after preflight',result.stderr)
 
     def test_ordinary_residual_state_does_not_install_retention(self):
         self.env['APT_TEST_CHATD']=self.ordinary_record('config-files')
@@ -266,7 +328,7 @@ if stage == 'install':
         self.env['APT_TEST_UID'] = '1000'
         result = self.run_installer('--help')
         self.assertEqual(result.returncode, 0)
-        self.assertIn('agent-sphere and agent-apps', result.stdout)
+        self.assertIn('agent-sphere, agent-ultra, sphere-manager and agent-apps', result.stdout)
         self.assertEqual(self.calls(), [])
 
     def test_missing_apt_is_rejected(self):
@@ -287,12 +349,15 @@ if stage == 'install':
     def test_each_reviewed_rename_passes_both_checks(self):
         for old,new,oldversion,newversion in [('mote-sync','mote-vault-sync','1.1.0-2','1.1.0-3'),
                 ('mote-syncd','mote-vault-syncd','1.1.0-2','1.1.0-3'),
-                ('cx-node','cx-agent','0.3.4-1~local20260909','0.3.4-2'),
+                ('cx-node','cx-mesh','0.3.4-1~local20260909','1.1.0-1'),
                 ('model-node','model-llm','0.1.0-2','0.1.0-3')]:
             with self.subTest(old=old):
+                self.fake_mcp_classifier('absent')
+                self.env['APT_TEST_CX']=f'cx-node={oldversion},cx-agent=-,codex-mesh=-;sha256:fixture' if old=='cx-node' else 'absent'
+                artifact=self.root/(new+'.deb');artifact.touch()
                 self.env['APT_TEST_PLAN'] = f'Remv {old} [{oldversion}]\nInst {new} ({newversion} stable)'
                 self.env['APT_TEST_ACTIONS'] = (f'{old} {oldversion} amd64 none > - - none **REMOVE**\n'
-                    f'{new} - - none < {newversion} amd64 none /cache/{new}.deb\n')
+                    f'{new} - - none < {newversion} amd64 none {artifact}\n')
                 result=self.run_installer('--yes')
                 self.assertEqual(result.returncode, 0,result.stderr)
 

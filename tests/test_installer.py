@@ -415,6 +415,7 @@ print(state)
     def test_each_reviewed_rename_passes_both_checks(self):
         for old,new,oldversion,newversion in [('mote-sync','mote-vault-sync','1.1.0-2','1.1.0-3'),
                 ('mote-syncd','mote-vault-syncd','1.1.0-2','1.1.0-3'),
+                ('cx-node','cx-mesh','0.3.3-4','1.1.0-1'),
                 ('cx-node','cx-mesh','0.3.4-1~local20260909','1.1.0-1'),
                 ('model-node','model-llm','0.1.0-2','0.1.0-3')]:
             with self.subTest(old=old):

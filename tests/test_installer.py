@@ -29,15 +29,23 @@ class InstallerTests(unittest.TestCase):
         text = INSTALLER.read_text()
         text = text.replace("agentsphere_platform_check || fail 'Platform preflight failed. No package or source change was started.'", ": # platform checked by isolated bootstrap tests")
         text = text.replace("agentsphere_apt_bootstrap || fail 'Signed APT bootstrap failed. Package installation was not started.'", ": # bootstrap checked by isolated bootstrap tests")
-        text = text.replace('if ! agentsphere_launch_manager "${confirmation[@]}"; then', 'if ! true; then')
-        self.installer.write_text(text)
         self.bin = self.root / "bin"
         self.bin.mkdir()
+        # Trap an accidental fixed-path or PATH-based UI launch inside the fixture.
+        for name in ("agpc-manager", "sphere-manager"):
+            text = text.replace("/usr/bin/" + name, str(self.bin / name))
+        self.installer.write_text(text)
         self.log = self.root / "apt-calls.jsonl"
         self.env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ['PATH'],
                         APT_TEST_LOG=str(self.log), TMPDIR=str(self.root))
-        for key in ('APT_TEST_FAIL', 'APT_TEST_UID', 'APT_TEST_PLAN', 'APT_TEST_ACTIONS', 'APT_TEST_OBSIDIAN', 'APT_TEST_CHATD', 'APT_TEST_CHATD_FILE', 'APT_TEST_FINAL_CHATD', 'APT_TEST_HOOK', 'APT_TEST_PROMPT', 'APT_TEST_CHATD_ACCESS'):
+        for key in ('APT_TEST_FAIL', 'APT_TEST_UID', 'APT_TEST_PLAN', 'APT_TEST_ACTIONS', 'APT_TEST_OBSIDIAN', 'APT_TEST_CHATD', 'APT_TEST_CHATD_FILE', 'APT_TEST_FINAL_CHATD', 'APT_TEST_HOOK', 'APT_TEST_PROMPT', 'APT_TEST_CHATD_ACCESS', 'APT_TEST_MANAGER', 'APT_TEST_FINAL_MANAGER', 'APT_TEST_MANAGER_BAD_DIGEST'):
             self.env.pop(key, None)
+        for name in ("agpc-manager", "sphere-manager"):
+            self.write_fake(name, """
+import os, pathlib, sys
+pathlib.Path(os.environ['APT_TEST_LOG'] + '.manager').touch()
+sys.exit(37)
+""")
         self.write_fake("id", """
 import os, sys
 assert sys.argv[1:] == ['-u']
@@ -57,8 +65,9 @@ if len(sys.argv) == 2:
     if '/cx-node.' in sys.argv[1]:hashes={'prerm':'5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3','postrm':'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}
     print(('0'*64 if os.environ.get('APT_TEST_HOOK') else hashes[sys.argv[1].rsplit('.',1)[-1]])+'  '+sys.argv[1])
 else:
-    sys.stdin.read()
-    sys.exit(1 if os.environ.get('APT_TEST_OBSIDIAN') == 'bad-digest' else 0)
+    check=sys.stdin.read()
+    bad_manager=os.environ.get('APT_TEST_MANAGER_BAD_DIGEST') and '/manager.deb' in check
+    sys.exit(1 if os.environ.get('APT_TEST_OBSIDIAN') == 'bad-digest' or bad_manager else 0)
 """)
         self.write_fake("dpkg-deb", """
 import os, sys
@@ -67,7 +76,7 @@ print('unexpected' if os.environ.get('APT_TEST_OBSIDIAN') == 'bad-control' else 
 """)
         self.write_fake("dpkg-query", """
 import os, sys
-if sys.argv[-1] == 'mote-bridge-mcp':sys.exit(1)
+if sys.argv[-1] in ('mote-bridge-mcp','sphere-manager'):sys.exit(1)
 if sys.argv[-1] in ('cx-node','cx-agent','codex-mesh'):sys.exit(1)
 value=os.environ.get('APT_TEST_CHATD', '')
 if 'Architecture' in sys.argv[2]:
@@ -101,6 +110,7 @@ if stage == 'install':
     if 'APT_TEST_FINAL_CHATD' in os.environ:final_env['APT_TEST_CHATD']=os.environ['APT_TEST_FINAL_CHATD']
     if 'APT_TEST_FINAL_MCP' in os.environ:final_env['APT_TEST_MCP']=os.environ['APT_TEST_FINAL_MCP']
     if 'APT_TEST_FINAL_CX' in os.environ:final_env['APT_TEST_CX']=os.environ['APT_TEST_FINAL_CX']
+    if 'APT_TEST_FINAL_MANAGER' in os.environ:final_env['APT_TEST_MANAGER']=os.environ['APT_TEST_FINAL_MANAGER']
     result = subprocess.run([hook], input=protocol, text=True, env=final_env)
     if result.returncode == 0 and os.environ.get('APT_TEST_PROMPT'):
         print('Fixture APT: Continue? [y/N]',flush=True)
@@ -157,10 +167,58 @@ if stage == 'install':
 import os,sys
 body=sys.stdin.read()
 assert 'def classify():' in body
-state=os.environ.get('APT_TEST_CX','absent') if 'MESH_FILES =' in body else os.environ.get('APT_TEST_MCP','absent')
+state=(os.environ.get('APT_TEST_MANAGER','absent') if 'MANAGER_PACKAGE =' in body else
+       os.environ.get('APT_TEST_CX','absent') if 'MESH_FILES =' in body else os.environ.get('APT_TEST_MCP','absent'))
 if state=='unreviewed':sys.exit(1)
 print(state)
 """)
+
+    def manager_migration(self):
+        self.fake_mcp_classifier('absent')
+        self.env['APT_TEST_MANAGER']='installed:sha256:fixture'
+        artifact=self.root/'manager.deb';artifact.touch()
+        self.env['APT_TEST_PLAN']='Remv sphere-manager [3.1.0-1]\nInst agpc-manager (3.1.0-2 stable)'
+        self.env['APT_TEST_ACTIONS']=(f'agpc-manager - - none < 3.1.0-2 amd64 none {artifact}\n'
+            'sphere-manager 3.1.0-1 amd64 none > - - none **REMOVE**\n')
+        return artifact
+
+    def test_clean_manager_rename_requires_exact_artifact_in_same_transaction(self):
+        self.manager_migration()
+        result=self.run_installer('--yes');self.assertEqual(result.returncode,0,result.stderr)
+        self.assertIn('agpc-manager=3.1.0-2',self.calls()[-1])
+        self.assertFalse(Path(str(self.log)+'.manager').exists())
+        self.env['APT_TEST_MANAGER_BAD_DIGEST']='1'
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.assertIn('Manager artifact changed',result.stderr)
+
+    def test_manager_unknown_state_stops_before_download_and_lock_drift_stops_dpkg(self):
+        self.manager_migration();self.env['APT_TEST_MANAGER']='unreviewed'
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.assertIn('Manager preflight failed',result.stderr)
+        self.assertEqual(self.calls(),[])
+        self.assertFalse(Path(str(self.log)+'.download').exists())
+        self.env['APT_TEST_MANAGER']='installed:sha256:fixture'
+        self.env['APT_TEST_FINAL_MANAGER']='installed:sha256:changed'
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.assertIn('legacy Manager state changed',result.stderr)
+
+    def test_manager_removal_without_new_payload_and_retired_install_are_refused(self):
+        artifact=self.manager_migration()
+        actions=[
+            'sphere-manager 3.1.0-1 amd64 none > - - none **REMOVE**\n',
+            f'agpc-manager - - none < 3.1.0-3 amd64 none {artifact}\n',
+            f'sphere-manager - - none < 3.1.0-1 amd64 none {artifact}\n',
+            f'agpc-manager - - none < 3.1.0-2 amd64 none {artifact}\nsphere-manager 3.1.0-2 amd64 none > - - none **REMOVE**\n',
+        ]
+        for action in actions:
+            with self.subTest(action=action):
+                self.env['APT_TEST_ACTIONS']=action
+                result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0,result.stdout)
+                self.assertIn('transaction refused',result.stderr)
+        self.env['APT_TEST_MANAGER']='absent'
+        self.env['APT_TEST_ACTIONS']=''
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.assertIn('unreviewed Manager package removal',result.stderr)
 
     def test_reviewed_mcp_replacement_is_required_in_same_transaction(self):
         self.fake_mcp_classifier()
@@ -201,12 +259,20 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-1','agent-ultra=0.1.0-1','sphere-manager=3.1.0-1','agent-apps=0.2.0-1'])
+        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-2','agent-ultra=0.1.0-1','agpc-manager=3.1.0-2','agent-apps=0.2.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][-6:], ['install', *self.calls()[1][2:]])
         self.assertNotIn('--yes', self.calls()[-1])
         self.assertIn('health are separate checks', result.stdout)
         self.assertFalse(list(self.root.glob('agent-sphere-apps.*')))
+
+    def test_successful_interactive_install_exits_without_opening_manager(self):
+        result = self.run_piped_installer('y')
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('packages installed.', result.stdout)
+        self.assertIn('Use agpc-manager', result.stdout)
+        self.assertFalse(Path(str(self.log) + '.manager').exists(), result.stdout)
+        self.assertNotIn('AGPC Manager exited', result.stdout)
 
     def test_piped_installer_respects_interactive_refusal(self):
         result=self.run_piped_installer('n')
@@ -328,7 +394,7 @@ print(state)
         self.env['APT_TEST_UID'] = '1000'
         result = self.run_installer('--help')
         self.assertEqual(result.returncode, 0)
-        self.assertIn('agent-sphere, agent-ultra, sphere-manager and agent-apps', result.stdout)
+        self.assertIn('agent-sphere, agent-ultra, agpc-manager and agent-apps', result.stdout)
         self.assertEqual(self.calls(), [])
 
     def test_missing_apt_is_rejected(self):

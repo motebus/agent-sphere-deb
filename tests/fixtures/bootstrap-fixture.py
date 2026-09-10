@@ -45,6 +45,5 @@ reset('22.04');run('agentsphere_apt_bootstrap',False);assert not key.exists();ch
 reset();run('agentsphere_platform_check',False,{'PATH':'/fixture/missing-gpg'});assert not key.exists();checks.append('missing requirement rejected before mutation')
 reset();run('agentsphere_apt_bootstrap',False,{'BAD_KEY':'1'});assert not key.exists() and not source.exists();checks.append('bad downloaded key rejected before publication')
 reset();target=P('/etc/owner-key');target.write_bytes(b'untouched');key.parent.mkdir();key.symlink_to(target);before=meta(target);run('agentsphere_apt_bootstrap',False);assert meta(target)==before and key.is_symlink();checks.append('symlinked key refused and target untouched')
-run('agentsphere_launch_manager');run('agentsphere_launch_manager --yes');run('agentsphere_launch_manager --invalid',False);checks.append('noTTY and explicit yes skip UI; bad flag rejected')
 result={'ok':True,'checks':checks,'isolation':{'private_user_network_mount_namespaces':True,'effective_capabilities':0},'scope':'isolated namespace; fixed download adapter returns reviewed public key; real GPG SHA/fingerprint inspection; no network, APT transaction or host changes'}
 print(json.dumps(result))

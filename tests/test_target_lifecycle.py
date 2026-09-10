@@ -70,7 +70,7 @@ class TargetLifecycleTests(unittest.TestCase):
 
     def test_target_has_no_reverse_ui_or_cloud_dependency(self):
         text=(ROOT/package.SOURCES[package.TARGET]).read_text()
-        for denied in ('sphere-manager','medge.service','iagent.service','ss-webos','network-online.target','UltraOne','PartOf=','Requires='):
+        for denied in ('sphere-manager','agpc-manager','medge.service','iagent.service','ss-webos','network-online.target','UltraOne','PartOf=','Requires='):
             self.assertNotIn(denied,text)
         self.assertIn('WantedBy=multi-user.target',text)
         self.assertNotIn('Exec',text)

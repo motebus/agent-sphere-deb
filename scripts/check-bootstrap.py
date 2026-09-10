@@ -39,6 +39,6 @@ pathlib.Path(args[args.index('--output')+1]).write_bytes(b'bad' if os.environ.ge
  if completed.returncode:
   sys.stderr.write(completed.stderr)
   completed.check_returncode()
- result=json.loads(completed.stdout);assert result['ok'] and len(result['checks'])==15
+ result=json.loads(completed.stdout);assert result['ok'] and len(result['checks'])==14
  assert result['isolation']=={'private_user_network_mount_namespaces':True,'effective_capabilities':0}
  print(json.dumps(result))

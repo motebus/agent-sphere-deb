@@ -43,7 +43,7 @@ def check_control(meta):
     expected = control()
     if meta != expected:
         raise ValueError("package metadata differs from reviewed control")
-    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.2.0-1":
+    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.2.0-2":
         raise ValueError("wrong package identity")
     if set(meta) != {"Package", "Version", "Architecture", "Section", "Priority",
                     "Maintainer", "Homepage", "Depends", "Description"}:
@@ -144,7 +144,7 @@ def digest(path):
 
 def manifest(out):
     if "PENDING_REVIEWED_" in (ROOT / "agpc.sh").read_text():
-        raise ValueError("release blocked: exact committed-main MCP and CX migration artifacts are required")
+        raise ValueError("release blocked: exact committed-main migration artifacts are required")
     path = out / ("agent-sphere_" + control()["Version"] + "_all.deb")
     verify(path)
     if (ROOT / "agpc.sh").read_bytes() != (ROOT / "agent-sphere-apps.sh").read_bytes():

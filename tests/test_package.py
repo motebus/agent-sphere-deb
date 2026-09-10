@@ -5,6 +5,7 @@ import subprocess
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("package", ROOT / "scripts/package.py")
@@ -19,14 +20,17 @@ class PackageTests(unittest.TestCase):
     def test_core_excludes_manager_ui_and_local_ultra(self):
         self.assertEqual(len(package.NAMES), 11)
         self.assertTrue({"agos", "model-router", "model-llm", "cx-mesh", "mote-mcpd"}.issubset(package.NAMES))
-        self.assertFalse({"medge", "sphere-manager", "agent-apps", "agent-ultra", "mdesk", "ss-webos", "obsidian"}.intersection(package.NAMES))
+        self.assertFalse({"medge", "sphere-manager", "agpc-manager", "agent-apps", "agent-ultra", "mdesk", "ss-webos", "obsidian"}.intersection(package.NAMES))
         self.assertNotIn("Recommends", package.control())
         self.assertNotIn("Suggests", package.control())
 
     def test_unreviewed_migration_artifacts_block_release(self):
-        if "PENDING_REVIEWED_" in (ROOT / "agent-sphere-apps.sh").read_text():
-            with self.assertRaisesRegex(ValueError, "committed-main MCP and CX"):
-                package.manifest(ROOT / "dist")
+        with tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:
+            source = Path(tmp)
+            (source / "agpc.sh").write_text("PENDING_REVIEWED_FIXTURE_SHA256")
+            with mock.patch.object(package, "ROOT", source):
+                with self.assertRaisesRegex(ValueError, "committed-main migration artifacts"):
+                    package.manifest(source / "dist")
 
     def test_reproducible_build(self):
         with tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:
@@ -41,7 +45,7 @@ class PackageTests(unittest.TestCase):
             package.check_control(altered)
 
     def test_modified_hooks_and_runtime_payload_rejected(self):
-        for extra in ["DEBIAN/postinst", "usr/bin/sphere-manager"]:
+        for extra in ["DEBIAN/postinst", "usr/bin/agpc-manager"]:
             with self.subTest(extra=extra), tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:
                 original = package.build(Path(tmp) / "base")
                 root = Path(tmp) / "unpacked"

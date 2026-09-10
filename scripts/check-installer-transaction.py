@@ -42,7 +42,9 @@ def in_namespace():
     classifier+=text[start:text.index('\n}\n',start)+3]
     start=text.index('classify_legacy_cx() {')
     classifier+=text[start:text.index('\n}\n',start)+3]
-    guard.write_text('#!/bin/bash\nset -euo pipefail\n'+classifier+"expected_legacy_state=absent\nexpected_mcp_state=absent\nexpected_cx_state=absent\n"+text.split("<<'GUARD'\n", 1)[1].split('\nGUARD\n', 1)[0] + '\n')
+    start=text.index('classify_legacy_manager() {')
+    classifier+=text[start:text.index('\nMANAGER_PREFLIGHT\n}',start)+len('\nMANAGER_PREFLIGHT\n}')+1]
+    guard.write_text('#!/bin/bash\nset -euo pipefail\n'+classifier+"expected_legacy_state=absent\nexpected_mcp_state=absent\nexpected_cx_state=absent\nexpected_manager_state=absent\n"+text.split("<<'GUARD'\n", 1)[1].split('\nGUARD\n', 1)[0] + '\n')
     guard.chmod(0o700)
     evidence = []
     for scenario in ('vault-rename', 'unrelated-removal', 'chatd-removal'):

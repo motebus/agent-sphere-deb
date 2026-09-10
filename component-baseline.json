@@ -1,7 +1,7 @@
 {
-  "schema": "agent-sphere-component-baseline/v2",
+  "schema": "agent-sphere-component-baseline/v3",
   "aggregate_repository": "https://github.com/motebus/download",
-  "aggregate_tag": "agent-computer-v0.1.0-3",
+  "aggregate_tag": "agent-computer-v0.2.0-1",
   "artifact_verification_owner": "signed Agent Computer aggregate publication",
   "packages": [
     {
@@ -25,14 +25,45 @@
       "architecture": "amd64"
     },
     {
-      "name": "medge",
+      "name": "mlink",
+      "version": "2.1.0-1",
+      "architecture": "amd64"
+    },
+    {
+      "name": "mote-secd",
+      "version": "1.0.0-2",
+      "architecture": "amd64"
+    },
+    {
+      "name": "agos",
+      "version": "2.0.0-2",
+      "architecture": "amd64"
+    },
+    {
+      "name": "model-router",
+      "version": "0.1.0-1",
+      "architecture": "amd64"
+    },
+    {
+      "name": "model-llm",
+      "version": "0.1.0-3",
+      "architecture": "amd64"
+    },
+    {
+      "name": "cx-agent",
+      "version": "0.3.4-3",
+      "architecture": "amd64"
+    },
+    {
+      "name": "mote-mcpd",
       "version": "3.0.0-3",
       "architecture": "amd64"
     },
     {
-      "name": "mlink",
-      "version": "2.1.0-1",
+      "name": "codex-mesh",
+      "version": "1.0.0-2",
       "architecture": "amd64"
     }
-  ]
+  ],
+  "profile": "headless-core"
 }

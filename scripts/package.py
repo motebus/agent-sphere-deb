@@ -13,7 +13,7 @@ import tarfile
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-NAMES = {"sphered", "moted", "mote-proxy", "mote-transportd", "medge", "mlink"}
+NAMES = {'moted', 'mote-transportd', 'model-router', 'mote-mcpd', 'mote-secd', 'cx-agent', 'agos', 'mote-proxy', 'codex-mesh', 'model-llm', 'sphered', 'mlink'}
 DOC = "usr/share/doc/agent-sphere/"
 PAYLOAD = {DOC + "README.md", DOC + "copyright"}
 
@@ -40,14 +40,14 @@ def check_control(meta):
     expected = control()
     if meta != expected:
         raise ValueError("package metadata differs from reviewed control")
-    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all":
+    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.2.0-1":
         raise ValueError("wrong package identity")
     if set(meta) != {"Package", "Version", "Architecture", "Section", "Priority",
                     "Maintainer", "Homepage", "Depends", "Description"}:
         raise ValueError("unexpected control fields")
     deps = meta["Depends"].split(",")
     matches = [re.fullmatch(r"([a-z][a-z0-9-]*) \(>= ([0-9][0-9A-Za-z.+:~\-]*)\)", d.strip()) for d in deps]
-    if len(deps) != 6 or not all(matches) or {m[1] for m in matches} != NAMES:
+    if len(deps) != 12 or not all(matches) or {m[1] for m in matches} != NAMES:
         raise ValueError("dependency boundary violation")
     baseline = json.loads((ROOT / "component-baseline.json").read_text())
     if {p["name"]: p["version"] for p in baseline["packages"]} != {m[1]: m[2] for m in matches}:
@@ -119,6 +119,8 @@ def digest(path):
 
 
 def manifest(out):
+    if "PENDING_REVIEWED_" in (ROOT / "agent-sphere-apps.sh").read_text():
+        raise ValueError("release blocked: exact committed-main MCP and CX migration artifacts are required")
     path = out / ("agent-sphere_" + control()["Version"] + "_all.deb")
     verify(path)
     installer = out / "agent-sphere-apps.sh"

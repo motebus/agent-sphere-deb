@@ -58,6 +58,7 @@ print('unexpected' if os.environ.get('APT_TEST_OBSIDIAN') == 'bad-control' else 
 """)
         self.write_fake("dpkg-query", """
 import os, sys
+if sys.argv[-1] == 'mote-bridge-mcp':sys.exit(1)
 if sys.argv[-1] == 'cx-node':print('0.3.3-6|amd64|install ok installed|');sys.exit(0)
 value=os.environ.get('APT_TEST_CHATD', '')
 if 'Architecture' in sys.argv[2]:
@@ -89,6 +90,7 @@ if stage == 'install':
     protocol = 'VERSION 3\\nAPT::Architecture=amd64\\n\\n' + os.environ.get('APT_TEST_ACTIONS', '')
     final_env=dict(os.environ, APT_HOOK_INFO_FD='0')
     if 'APT_TEST_FINAL_CHATD' in os.environ:final_env['APT_TEST_CHATD']=os.environ['APT_TEST_FINAL_CHATD']
+    if 'APT_TEST_FINAL_MCP' in os.environ:final_env['APT_TEST_MCP']=os.environ['APT_TEST_FINAL_MCP']
     result = subprocess.run([hook], input=protocol, text=True, env=final_env)
     if result.returncode == 0 and os.environ.get('APT_TEST_PROMPT'):
         print('Fixture APT: Continue? [y/N]',flush=True)
@@ -137,13 +139,60 @@ if stage == 'install':
     def calls(self):
         return [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
 
-    def test_default_keeps_apt_confirmation_and_installs_both(self):
+    def fake_mcp_classifier(self, state='installed:reviewed'):
+        # This isolates the shell transaction protocol; the real Python
+        # classifier is tested independently in test_mcp_preflight.py.
+        self.env['APT_TEST_MCP']=state
+        self.write_fake('python3', """
+import os,sys
+assert 'def classify():' in sys.stdin.read()
+state=os.environ['APT_TEST_MCP']
+if state=='unreviewed':sys.exit(1)
+print(state)
+""")
+
+    def test_reviewed_mcp_replacement_is_required_in_same_transaction(self):
+        self.fake_mcp_classifier()
+        artifact=self.root/'mote-mcpd.deb';artifact.touch()
+        self.env['APT_TEST_PLAN']='Remv mote-bridge-mcp [3.0.0-2]\nInst mote-mcpd (3.0.0-3 stable)'
+        self.env['APT_TEST_ACTIONS']=(f'mote-mcpd - - none < 3.0.0-3 amd64 none {artifact}\n'
+            'mote-bridge-mcp 3.0.0-2 amd64 none > - - none **REMOVE**\n')
+        result=self.run_installer('--yes');self.assertEqual(result.returncode,0,result.stderr)
+        self.env['APT_TEST_ACTIONS']='mote-bridge-mcp 3.0.0-2 amd64 none > - - none **REMOVE**\n'
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.assertIn('lacks its reviewed replacement',result.stderr)
+
+    def test_custom_mcp_preflight_stops_before_download(self):
+        self.fake_mcp_classifier('unreviewed')
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.assertIn('MCP preflight failed',result.stderr)
+        self.assertEqual(self.calls(),[])
+        self.assertFalse(Path(str(self.log)+'.download').exists())
+
+    def test_mcp_state_drift_is_checked_under_apt_lock(self):
+        self.fake_mcp_classifier();self.env['APT_TEST_FINAL_MCP']='installed:changed'
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.assertIn('MCP state changed after preflight',result.stderr)
+
+    def test_mcp_old_version_retired_install_and_residual_removal_are_refused(self):
+        self.fake_mcp_classifier()
+        for action in ('mote-bridge-mcp 3.0.0-1 amd64 none > - - none **REMOVE**\n',
+                       'mote-bridge-mcp - - none < 3.0.0-2 amd64 none /cache/old.deb\n'):
+            self.env['APT_TEST_ACTIONS']=action
+            result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.fake_mcp_classifier('config-files')
+        self.env['APT_TEST_ACTIONS']='mote-bridge-mcp 3.0.0-2 amd64 none > - - none **REMOVE**\n'
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.env['APT_TEST_ACTIONS']=''
+        result=self.run_installer('--yes');self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_default_keeps_apt_confirmation_and_installs_all_four(self):
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:4], ['--simulate','install','agent-sphere=0.1.0-8','agent-apps=0.1.0-2'])
+        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-1','agent-ultra=0.1.0-1','sphere-manager=0.1.0-1','agent-apps=0.2.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
-        self.assertEqual(self.calls()[-1][-4:], ['install', *self.calls()[1][2:]])
+        self.assertEqual(self.calls()[-1][-6:], ['install', *self.calls()[1][2:]])
         self.assertNotIn('--yes', self.calls()[-1])
         self.assertIn('health are separate checks', result.stdout)
         self.assertFalse(list(self.root.glob('agent-sphere-apps.*')))
@@ -177,8 +226,8 @@ if stage == 'install':
 
     def test_exact_public_cx_baseline_is_checked_before_removal(self):
         artifact=self.root/'cx-agent.deb';artifact.touch()
-        self.env['APT_TEST_PLAN']='Remv cx-node [0.3.3-6]\nInst cx-agent (0.3.4-2 stable)'
-        self.env['APT_TEST_ACTIONS']=(f'cx-agent - - none < 0.3.4-2 amd64 none {artifact}\n'
+        self.env['APT_TEST_PLAN']='Remv cx-node [0.3.3-6]\nInst cx-agent (0.3.4-3 stable)'
+        self.env['APT_TEST_ACTIONS']=(f'cx-agent - - none < 0.3.4-3 amd64 none {artifact}\n'
             'cx-node 0.3.3-6 amd64 none > - - none **REMOVE**\n')
         result=self.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
@@ -266,7 +315,7 @@ if stage == 'install':
         self.env['APT_TEST_UID'] = '1000'
         result = self.run_installer('--help')
         self.assertEqual(result.returncode, 0)
-        self.assertIn('agent-sphere and agent-apps', result.stdout)
+        self.assertIn('agent-sphere, agent-ultra, sphere-manager and agent-apps', result.stdout)
         self.assertEqual(self.calls(), [])
 
     def test_missing_apt_is_rejected(self):
@@ -287,7 +336,7 @@ if stage == 'install':
     def test_each_reviewed_rename_passes_both_checks(self):
         for old,new,oldversion,newversion in [('mote-sync','mote-vault-sync','1.1.0-2','1.1.0-3'),
                 ('mote-syncd','mote-vault-syncd','1.1.0-2','1.1.0-3'),
-                ('cx-node','cx-agent','0.3.4-1~local20260909','0.3.4-2'),
+                ('cx-node','cx-agent','0.3.4-1~local20260909','0.3.4-3'),
                 ('model-node','model-llm','0.1.0-2','0.1.0-3')]:
             with self.subTest(old=old):
                 self.env['APT_TEST_PLAN'] = f'Remv {old} [{oldversion}]\nInst {new} ({newversion} stable)'

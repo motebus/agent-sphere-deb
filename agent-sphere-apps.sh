@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
     printf '%s\n' \
         'Usage: agent-sphere-apps.sh [--yes] [--help]' \
-        'Install agent-sphere and agent-apps using the configured signed MoteBus APT repository.' \
+        'Install agent-sphere, agent-ultra, sphere-manager and agent-apps using the configured signed MoteBus APT repository.' \
         'Downloads the pinned official Obsidian DEB for the same APT transaction.' \
         'Run as root. APT asks for confirmation unless --yes is supplied.'
 }
@@ -18,7 +18,7 @@ for arg in "$@"; do
     esac
 done
 [[ $(id -u) == 0 ]] || fail 'Run this installer as root (for example, with sudo).'
-for command in apt-get curl sha256sum dpkg dpkg-deb dpkg-query mktemp chmod realpath stat; do
+for command in apt-get curl sha256sum dpkg dpkg-deb dpkg-query mktemp chmod realpath stat python3; do
     command -v "$command" >/dev/null 2>&1 || fail "$command is required. Package installation was not started."
 done
 [[ $(dpkg --print-architecture) == amd64 ]] || fail 'This reviewed release requires amd64.'
@@ -95,7 +95,124 @@ classify_legacy_chatd() {
         printf 'absent\n'
     fi
 }
+# The old removal hook deletes its managed Codex entry. Validate its exact
+# normal ownership and stock table before downloads, then recheck under lock.
+classify_legacy_mcp() {
+python3 - <<'MCP_PREFLIGHT'
+import hashlib
+import json
+import os
+from pathlib import Path
+import stat
+import subprocess
+import sys
+import tomllib
+
+NORMAL = '/etc/mote/mote-bridge-mcp/mote-bridge-mcp-deb.env'
+IDENTITY = '/etc/mote/mote-bridge-mcp/mote-bridge-mcp-mchat.env'
+CONFIG = '/etc/codex/config.toml'
+INFO = '/var/lib/dpkg/info/mote-bridge-mcp.'
+STOCK = {'command': '/usr/bin/mote', 'args': ['mcp', 'serve'],
+         'enabled': True, 'default_tools_approval_mode': 'auto'}
+
+
+def checked(path, digest=None, mode=None, optional=False):
+    try:
+        metadata = os.lstat(path)
+    except FileNotFoundError:
+        if optional:
+            return None
+        raise ValueError('required migration file is missing: ' + path)
+    if (not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != 0 or
+            metadata.st_mode & 0o022 or
+            (mode is not None and metadata.st_gid != 0) or
+            (mode is not None and stat.S_IMODE(metadata.st_mode) != mode)):
+        raise ValueError('unsafe migration file metadata: ' + path)
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NOATIME)
+    try:
+        before = os.fstat(fd)
+        if metadata != before:
+            raise ValueError('migration file changed during inspection: ' + path)
+        with os.fdopen(fd, 'rb', closefd=False) as stream:
+            data = stream.read()
+        after = os.fstat(fd)
+        if before != after:
+            raise ValueError('migration file changed during inspection: ' + path)
+    finally:
+        os.close(fd)
+    sha = hashlib.sha256(data).hexdigest()
+    if digest is not None and sha != digest:
+        raise ValueError('unreviewed migration file: ' + path)
+    identity = (sha, after.st_ino, after.st_mtime_ns, after.st_ctime_ns,
+                after.st_mode, after.st_uid, after.st_gid, after.st_nlink)
+    return data, identity
+
+
+def classify():
+    result = subprocess.run(['dpkg-query', '-W', '-f=${Version}\n${Architecture}\n${Status}\n${Conffiles}',
+                             'mote-bridge-mcp'], capture_output=True, text=True)
+    if result.returncode == 1 and not result.stdout:
+        return 'absent'
+    if result.returncode:
+        raise ValueError('cannot inspect legacy MCP package metadata')
+    lines = result.stdout.splitlines()
+    if len(lines) != 4 or lines[:2] != ['3.0.0-2', 'amd64']:
+        raise ValueError('legacy MCP package version, architecture or conffiles are unreviewed')
+    state = {'install ok installed': 'installed', 'deinstall ok config-files': 'config-files'}.get(lines[2])
+    if state is None:
+        raise ValueError('legacy MCP package needs a completed DPKG state')
+    conffile = lines[3].split()
+    expected = [NORMAL, '7582d273536ba7102097a3c090f916d0']
+    if conffile != expected:
+        if state != 'config-files' or conffile != expected + ['obsolete']:
+            raise ValueError('legacy MCP conffile ownership differs from the normal release')
+        owner = subprocess.run(['dpkg-query', '-S', NORMAL], capture_output=True, text=True)
+        successor = subprocess.run(['dpkg-query', '-W', '-f=${Version}|${Architecture}|${Status}',
+                                    'mote-mcpd'], capture_output=True, text=True)
+        if (owner.returncode or owner.stdout.strip() != 'mote-mcpd: ' + NORMAL or
+                successor.returncode or successor.stdout != '3.0.0-3|amd64|install ok installed'):
+            raise ValueError('obsolete legacy MCP conffile lacks its exact installed successor owner')
+    # No old postrm exists in the reviewed release, including residual records.
+    for hook in ('preinst', 'postrm'):
+        if os.path.lexists(INFO + hook):
+            raise ValueError('unreviewed legacy MCP ' + hook)
+    evidence = {}
+    for path, sha in (() if state != 'installed' else (
+        (INFO + 'prerm', 'ab66dbe928eb706c0275dc1431f6350a24a55c13d77b6e34a3d4d7651f5aecac'),
+        ('/usr/libexec/mote/install-codex-mcp', '6147acb2dc6dfebb44f0d4a9c3b9df2b3c8ec079172038a9dd663b3280624f85'))):
+        evidence[path] = checked(path, digest=sha, mode=0o755)[1]
+    evidence[IDENTITY] = checked(IDENTITY)[1]
+    config = checked(CONFIG, optional=True)
+    if config is not None:
+        try:
+            document = tomllib.loads(config[0].decode('utf-8'))
+        except (UnicodeError, tomllib.TOMLDecodeError):
+            raise ValueError('system Codex configuration is not valid TOML') from None
+        servers = document.get('mcp_servers', {})
+        if not isinstance(servers, dict):
+            raise ValueError('system Codex MCP configuration is malformed')
+        for name in ('mote-bridge-mcp', 'mote-mcpd'):
+            if name in servers and (not isinstance(servers[name], dict) or servers[name] != STOCK or
+                    type(servers[name].get('enabled')) is not bool):
+                raise ValueError('customized system MCP entry requires a reviewed migration: ' + name)
+        evidence[CONFIG] = config[1]
+    else:
+        evidence[CONFIG] = None
+    return state + ':' + hashlib.sha256(json.dumps(evidence, sort_keys=True).encode()).hexdigest()
+
+
+if __name__ == '__main__':
+    try:
+        print(classify())
+    except (OSError, ValueError) as error:
+        print('Legacy MCP preflight refused: ' + str(error) +
+              '. Inspect package metadata and managed system entry; do not print identity values or force removal.', file=sys.stderr)
+        sys.exit(1)
+MCP_PREFLIGHT
+}
+
 legacy_state=$(classify_legacy_chatd) || fail 'Legacy preflight failed. No download or package change was started.'
+mcp_state=$(classify_legacy_mcp) || fail 'MCP preflight failed. No download or package change was started.'
 
 umask 077
 temporary=$(mktemp -d /var/tmp/agent-sphere-apps.XXXXXXXX)
@@ -112,7 +229,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.1.0-8 agent-apps=0.1.0-2 "$obsidian")
+packages=(agent-sphere=0.2.0-1 agent-ultra=0.1.0-1 sphere-manager=0.1.0-1 agent-apps=0.2.0-1 "$obsidian")
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove a protected mote-chatd record.
 if [[ $legacy_state == retention:* ]]; then
@@ -126,12 +243,15 @@ fi
 # APT protocol v3 is checked again under APT's lock before any DPKG action.
 {
 printf '%s\n' '#!/bin/bash' 'set -euo pipefail'
-declare -f classify_legacy_chatd
+declare -f classify_legacy_chatd classify_legacy_mcp
 printf 'expected_legacy_state=%q\n' "$legacy_state"
+printf 'expected_mcp_state=%q\n' "$mcp_state"
 cat <<'GUARD'
 fail() { printf 'Agent Computer transaction refused: %s\n' "$*" >&2; exit 1; }
 legacy_state=$(classify_legacy_chatd) || fail 'legacy ownership is unsupported at transaction time'
 [[ $legacy_state == "$expected_legacy_state" ]] || fail 'legacy ownership changed after preflight'
+mcp_state=$(classify_legacy_mcp) || fail 'legacy MCP state is unsupported at transaction time'
+[[ $mcp_state == "$expected_mcp_state" ]] || fail 'legacy MCP state changed after preflight'
 [[ ${APT_HOOK_INFO_FD:-} == 0 ]] || fail 'APT action protocol is unavailable'
 IFS= read -r header || fail 'empty action protocol'
 [[ $header == 'VERSION 3' ]] || fail 'APT action protocol version 3 is required'
@@ -149,7 +269,11 @@ if [[ $legacy_state == ordinary:installed ]]; then
     replacement[mote-chatd]=mote-transportd
     reviewed_old[mote-chatd]=2.0.0-4
 fi
-declare -A floor=([agent-sphere]=0.1.0-8 [agent-apps]=0.1.0-2 [moted]=3.6.0-2 [medge]=3.0.0-3 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.0.0-2 [cx-agent]=0.3.4-2 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
+if [[ $mcp_state == installed:* ]]; then
+    replacement[mote-bridge-mcp]=mote-mcpd
+    reviewed_old[mote-bridge-mcp]=3.0.0-2
+fi
+declare -A floor=([agent-sphere]=0.2.0-1 [agent-ultra]=0.1.0-1 [sphere-manager]=0.1.0-1 [agent-apps]=0.2.0-1 [moted]=3.6.0-2 [medge]=3.1.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.0.0-2 [cx-agent]=0.3.4-3 [mote-mcpd]=3.0.0-3 [codex-mesh]=1.0.0-2 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -181,13 +305,13 @@ while IFS= read -r line; do
         removed[$name]=true
     elif [[ $action == '**CONFIGURE**' || $action == /*.deb ]]; then
         [[ $name != mote-chatd || $legacy_state == retention:* ]] || fail 'retention is not admitted for this ownership state'
-        case "$name" in mote-sync|mote-syncd|cx-node|model-node|model-grid|mcp-run|ultra-mcp-ssh) fail "retired package $name" ;; esac
+        case "$name" in mote-sync|mote-syncd|cx-node|model-node|model-grid|mcp-run|ultra-mcp-ssh|mote-bridge-mcp) fail "retired package $name" ;; esac
         [[ $new != - ]] || fail 'missing target version'
         [[ $old == - ]] || dpkg --compare-versions "$new" ge "$old" || fail "downgrade of $name"
         if [[ -n ${floor[$name]:-} ]]; then
             dpkg --compare-versions "$new" ge "${floor[$name]}" || fail "obsolete package $name"
         fi
-        if [[ $name == agent-sphere || $name == agent-apps ]]; then
+        if [[ $name == agent-sphere || $name == agent-apps || $name == agent-ultra || $name == sphere-manager ]]; then
             [[ $new == "${floor[$name]}" ]] || fail "unexpected composition version $name"
         fi
         if [[ $name == mote-transportd && $legacy_state == ordinary:* ]]; then
@@ -217,11 +341,18 @@ for name in "${!removed[@]}"; do
     [[ -n ${installed[${replacement[$name]}]:-} ]] || fail "$name removal lacks its reviewed replacement"
 done
 if $public_cx_migration; then
-    [[ ${installed[cx-agent]:-} == 0.3.4-2 ]] || fail 'public CX migration requires exact cx-agent 0.3.4-2'
+    [[ ${installed[cx-agent]:-} == 0.3.4-3 ]] || fail 'public CX migration requires exact cx-agent 0.3.4-3'
     path=${artifacts[cx-agent]}
     [[ ! -L $path && -f $path ]] || fail 'unsafe CX artifact'
     [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected CX artifact architecture'
-    printf '%s  %s\n' b9189a3b15321679fe2bcd19ad37ec2efb1b2fa6c9ceb10185d8e3d6c57333b9 "$path" | sha256sum --check --status || fail 'CX artifact changed'
+    printf '%s  %s\n' PENDING_REVIEWED_CX_AGENT_MAIN_SHA256 "$path" | sha256sum --check --status || fail 'CX artifact changed'
+fi
+if [[ -n ${removed[mote-bridge-mcp]:-} ]]; then
+    [[ ${installed[mote-mcpd]:-} == 3.0.0-3 ]] || fail 'MCP migration requires exact mote-mcpd 3.0.0-3'
+    path=${artifacts[mote-mcpd]}
+    [[ ! -L $path && -f $path ]] || fail 'unsafe MCP artifact'
+    [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected MCP artifact architecture'
+    printf '%s  %s\n' PENDING_REVIEWED_MOTE_MCPD_MAIN_SHA256 "$path" | sha256sum --check --status || fail 'MCP artifact changed'
 fi
 GUARD
 } > "$temporary/guard"
@@ -231,7 +362,7 @@ guard=$(realpath "$temporary/guard")
 apt-get update || fail 'APT update failed. Package installation was not started.'
 if ! apt-get --simulate install "${packages[@]}" > "$temporary/plan"; then
     cat "$temporary/plan"
-    fail 'Both packages and their dependencies must be available in the signed MoteBus APT repository. Package installation was not started.'
+    fail 'All four entry packages and their dependencies must be available in the signed MoteBus APT repository. Package installation was not started.'
 fi
 cat "$temporary/plan"
 declare -A removed=() planned=()
@@ -243,6 +374,9 @@ while read -r action package rest; do
                 'mote-chatd:[2.0.0-4]'*)
                     [[ $legacy_state == ordinary:installed ]] || fail 'Refusing removal of protected or unreviewed mote-chatd ownership.'
                     removed[mote-chatd]=mote-transportd ;;
+                'mote-bridge-mcp:[3.0.0-2]'*)
+                    [[ $mcp_state == installed:* ]] || fail 'Refusing unreviewed MCP package removal.'
+                    removed[mote-bridge-mcp]=mote-mcpd ;;
                 'mote-sync:[1.1.0-2]'*) removed[mote-sync]=mote-vault-sync ;;
                 'mote-syncd:[1.1.0-2]'*) removed[mote-syncd]=mote-vault-syncd ;;
                 'cx-node:[0.3.3-6]'*|'cx-node:[0.3.4-1~local20260909]'*) removed[cx-node]=cx-agent ;;
@@ -270,4 +404,4 @@ apt-get -o "DPkg::Pre-Install-Pkgs::=$guard" \
     -o "DPkg::Tools::Options::$guard::InfoFD=0" \
     -o 'Dpkg::Options::=--force-confold' \
     "${confirmation[@]}" install "${packages[@]}" <&"$confirmation_fd"
-printf '%s\n' 'Agent Sphere and Agent Apps packages installed. Runtime configuration and health are separate checks.'
+printf '%s\n' 'Agent Sphere, Agent Ultra, Sphere Manager and Agent Apps packages installed. Runtime configuration and health are separate checks.'

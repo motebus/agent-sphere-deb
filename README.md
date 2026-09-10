@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.2.0-2` is the headless core of the four-package Agent Sphere
+`agent-sphere 0.2.0-3` is the headless core of the four-package Agent Sphere
 system. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies.
 
@@ -40,12 +40,11 @@ TUI is started by Core. APT adds `init-system-helpers (>= 1.54)` for that
 lifecycle. Each dependency owns its executable, service and configuration. `mote-mcpd` retains on-demand stdio
 `mote mcp`; its package rename creates no daemon or new transport identity.
 
-This source is an **unreleased four-package candidate**. Native Mote MCPd,
-CX-Mesh artifacts must satisfy the new floors, and the
-four-entry aggregate additionally requires actual Redixs, Comm, Jujue, iAgent,
-MEdge management and AGPC Manager artifacts. No alias or empty package may
-substitute for those runtimes. Pending exact migration hashes block release
-manifest generation. Existing published tags remain immutable.
+This is a composition prerelease. Each dependency remains a real native package
+with its own release and lifecycle. The complete installer requires the matching
+signed `agent-computer-v0.2.0-3` aggregate; publishing this Core source release
+alone does not establish fleet or live runtime readiness. Existing published
+tags remain immutable.
 
 ## Headless startup
 
@@ -65,7 +64,7 @@ identity, admission and live owner health determine usable capabilities.
 ## Complete installation and migration
 
 The canonical `agpc.sh` installer requests all four entries
-in one APT transaction: Core `0.2.0-2`, Ultra `0.1.0-1`, AGPC Manager
+in one APT transaction: Core `0.2.0-3`, Ultra `0.1.0-1`, AGPC Manager
 `3.1.0-2` and Apps `0.2.0-1`. It acquires the pinned unmodified official Obsidian
 amd64 DEB, verifies its SHA-256 and Debian metadata, and supplies it to the
 same transaction. Obsidian belongs to Ultra and is not rehosted by MoteBus.
@@ -73,8 +72,8 @@ APT asks for confirmation. A piped installer reads `/dev/tty`; headless use
 requires explicit `--yes`. After successful installation, the installer prints
 the result and exits. Open `/usr/bin/agpc-manager` manually when needed.
 Package services retain their normal systemd lifecycle.
-The next release renames the frontend package and command from `sphere-manager`
-to `agpc-manager 3.1.0-2`, paired with `medge 3.1.0-2`. The existing `sphere`
+The frontend package and command are `agpc-manager 3.1.0-2`, paired with
+`medge 3.1.0-2`; the predecessor is `sphere-manager`. The existing `sphere`
 shortcut points to the new command. A clean installed `sphere-manager 3.1.0-1`
 amd64 package is the only admitted predecessor: its native executable and
 package checksum record and DPKG removal file list must match the reviewed
@@ -135,7 +134,7 @@ transaction must install the exact reviewed CX-Mesh artifact. Vault Sync and
 Model LLM renames remain bounded replacement pairs. APT protocol-v3 checks reject unrelated
 removals, retired package installation, downgraded components and any missing
 replacement. Changes between preflight and the locked transaction are denied.
-The next installer revision also admits the genuine `cx-node 0.3.3-4` amd64
+The installer also admits the genuine `cx-node 0.3.3-4` amd64
 installed state directly into the same CX-Mesh transaction, without an interim
 `0.3.3-6` package installation. Its exact removal file list, checksum record,
 native drain executable and lifecycle hooks must match the reviewed release;
@@ -144,7 +143,6 @@ existing native migration receipt excludes recursive legacy-state copying.
 Added or obsolete CX conffile ownership remains unsupported. Its exact residual
 record is admitted only with the installed CX-Mesh successor, reduced legacy
 file list, retained cleanup hook and sole successor executable ownership.
-This proposed path does not describe how previously upgraded hosts were installed.
 
 Identity files are never edited, diverted or assigned through manual DPKG
 metadata changes. Their bytes, inode, ctime and existing access metadata must

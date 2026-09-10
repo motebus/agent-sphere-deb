@@ -135,7 +135,11 @@ def main():
         harness = base / 'harness.py'
         harness.write_text(HARNESS)
         for mode in ('success', 'disconnect', 'apt-fails', 'tampered-input', 'start-fails', 'untrusted-parent', 'version-mismatch', 'ssh-fails'):
-            args = ['bwrap', '--unshare-all', '--die-with-parent', '--uid', '0', '--gid', '0',
+            privileged = os.environ.get('AGPC_BOOTSTRAP_NAMESPACE_SUDO') == '1'
+            # Root CI can isolate mounts/network/PIDs directly. Remapping only
+            # UID0 would hide the CI runner-owned private checkout from bwrap.
+            isolation = ['--unshare-pid', '--unshare-net', '--unshare-ipc', '--unshare-uts'] if privileged else ['--unshare-all', '--uid', '0', '--gid', '0']
+            args = ['bwrap', *isolation, '--die-with-parent',
                     '--clearenv', '--setenv', 'PATH', '/usr/sbin:/usr/bin:/sbin:/bin',
                     '--ro-bind', '/usr', '/usr', '--symlink', 'usr/bin', '/bin',
                     '--symlink', 'usr/sbin', '/sbin', '--symlink', 'usr/lib', '/lib']
@@ -147,7 +151,7 @@ def main():
             for name in ('apt-get', 'dpkg', 'dpkg-query', 'systemctl', 'systemd-run'):
                 args += ['--ro-bind', str(fake), '/usr/bin/' + name]
             args += ['/usr/bin/python3', '/harness.py', mode]
-            if os.environ.get('AGPC_BOOTSTRAP_NAMESPACE_SUDO') == '1':
+            if privileged:
                 args = ['sudo', '--'] + args
             result = subprocess.run(args, capture_output=True, text=True, timeout=45)
             if result.returncode:

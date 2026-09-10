@@ -124,7 +124,7 @@ installed `mote-mcpd` successor to own the normal path. No incidental old-record
 purge is performed. The runtime keeps legacy configuration/provider/helper
 paths while its managed Codex server entry uses the new package name.
 
-The CX-Mesh consolidation admits only reviewed `cx-node 0.3.3-6` or the
+The CX-Mesh consolidation admits only reviewed `cx-node 0.3.3-4`/`0.3.3-6` or the
 `0.3.4-1~local20260909` preview, `cx-agent 0.3.4-2`/`0.3.4-3`, and
 `codex-mesh 1.0.0-1`/`1.0.0-2` predecessors. Exact cleanup hooks and transferred
 conffiles are checked, as are existing CX/Mesh identity and configuration
@@ -135,6 +135,17 @@ transaction must install the exact reviewed CX-Mesh artifact. Vault Sync and
 Model LLM renames remain bounded replacement pairs. APT protocol-v3 checks reject unrelated
 removals, retired package installation, downgraded components and any missing
 replacement. Changes between preflight and the locked transaction are denied.
+The next installer revision also admits the genuine `cx-node 0.3.3-4` amd64
+installed state directly into the same CX-Mesh transaction, without an interim
+`0.3.3-6` package installation. Its exact removal file list, checksum record,
+native drain executable and lifecycle hooks must match the reviewed release;
+the executable must retain sole ownership and have no diversion. An intact
+existing native migration receipt excludes recursive legacy-state copying.
+Added or obsolete CX conffile ownership remains unsupported. Its exact residual
+record is admitted only with the installed CX-Mesh successor, reduced legacy
+file list, retained cleanup hook and sole successor executable ownership.
+This proposed path does not describe how previously upgraded hosts were installed.
+
 Identity files are never edited, diverted or assigned through manual DPKG
 metadata changes. Their bytes, inode, ctime and existing access metadata must
 survive component migration. An absent bootstrap receipt may be created by

@@ -21,7 +21,7 @@ class CxPreflightTests(unittest.TestCase):
   self.fingerprint='changed';self.assertNotEqual(module.classify(),first)
  def test_all_reviewed_cx_predecessors_are_narrow(self):
   for name,version in module.REVIEWED:
-   if name=='codex-mesh':continue
+   if name=='codex-mesh' or version=='0.3.3-4':continue
    self.records={name:version+'\namd64\ninstall ok installed\n'}
    self.assertIn(name+'='+version+';',module.classify().replace(',codex-mesh=-','').replace(',cx-agent=-','')) if name=='cx-agent' else self.assertIn(name+'='+version,module.classify())
  def test_unknown_versions_partial_states_and_conffiles_are_rejected(self):
@@ -54,4 +54,32 @@ class QueryTests(unittest.TestCase):
   for record in ('0.3.3-6\n\nunknown ok not-installed\n','\namd64\nunknown ok not-installed\n','\n\ninstall ok not-installed\n','\n\nunknown ok not-installed\n /etc/owned '+ 'a'*32):
    with mock.patch.object(module.subprocess,'run',return_value=subprocess.CompletedProcess([],0,record,'')):
     self.assertEqual(module.query('cx-node'),record)
+class Cx4Tests(unittest.TestCase):
+ def setUp(self):
+  self.files={};self.seen=[]
+  def checked(path,**kwargs):self.seen.append((path,kwargs));return [kwargs.get('digest','fixture'),1,1,1,0o100644,0,0,1]
+  self.inspect=mock.patch.object(module,'checked',side_effect=checked);self.inspect.start();self.addCleanup(self.inspect.stop)
+  self.exists=mock.patch.object(module.os.path,'lexists',return_value=False);self.exists.start();self.addCleanup(self.exists.stop)
+  self.account=mock.patch.object(module.pwd,'getpwnam',return_value=types.SimpleNamespace(pw_uid=123));self.account.start();self.addCleanup(self.account.stop)
+ def commands(self,owner):
+  return mock.patch.object(module.subprocess,'run',side_effect=lambda args,**kwargs:subprocess.CompletedProcess(args,0,owner+'\n' if args[0]=='dpkg-query' else '', ''))
+ def test_installed_exact_list_binary_and_receipt_are_bound(self):
+  with self.commands('cx-node: /usr/bin/cx'):module.cx4_state('install ok installed',self.files)
+  self.assertIn('/var/lib/dpkg/info/cx-node.list',self.files)
+  self.assertIn('/usr/bin/cx',self.files)
+  self.assertIn(('/var/lib/cx-node/state/runtime-migration.json',{'uid':123}),self.seen)
+ def test_changed_file_missing_receipt_and_extra_ownership_fail(self):
+  with self.commands('cx-node: /usr/bin/cx'),mock.patch.object(module,'checked',side_effect=ValueError('changed')):
+   with self.assertRaises(ValueError):module.cx4_state('install ok installed',self.files)
+  with mock.patch.object(module.os.path,'lexists',return_value=True):
+   with self.assertRaisesRegex(ValueError,'ownership or triggers'):module.cx4_state('install ok installed',self.files)
+  with self.commands('other: /usr/bin/cx'):
+   with self.assertRaisesRegex(ValueError,'sole expected'):module.cx4_state('install ok installed',self.files)
+ def test_residual_requires_exact_successor_and_reduced_list(self):
+  with mock.patch.object(module,'query',return_value=None):
+   with self.assertRaisesRegex(ValueError,'exact installed'):module.cx4_state('deinstall ok config-files',self.files)
+  with mock.patch.object(module,'query',return_value='1.1.0-1\namd64\ninstall ok installed\n'),self.commands('cx-mesh: /usr/bin/cx'):
+   module.cx4_state('deinstall ok config-files',self.files)
+  self.assertEqual(self.files['/var/lib/dpkg/info/cx-node.list'][0],module.CX4_RESIDUAL_LIST)
+  self.assertNotIn('/usr/bin/cx',self.files)
 if __name__=='__main__':unittest.main(verbosity=2)

@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.2.0-3` is the headless core of the four-package Agent Sphere
+`agent-sphere 0.2.0-4` is the headless core of the four-package Agent Sphere
 system. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies.
 
@@ -42,7 +42,7 @@ lifecycle. Each dependency owns its executable, service and configuration. `mote
 
 This is a composition prerelease. Each dependency remains a real native package
 with its own release and lifecycle. The complete installer requires the matching
-signed `agent-computer-v0.2.0-3` aggregate; publishing this Core source release
+signed `agent-computer-v0.2.0-4` aggregate; publishing this Core source release
 alone does not establish fleet or live runtime readiness. Existing published
 tags remain immutable.
 
@@ -64,7 +64,7 @@ identity, admission and live owner health determine usable capabilities.
 ## Complete installation and migration
 
 The canonical `agpc.sh` installer requests all four entries
-in one APT transaction: Core `0.2.0-3`, Ultra `0.1.0-1`, AGPC Manager
+in one APT transaction: Core `0.2.0-4`, Ultra `0.1.0-1`, AGPC Manager
 `3.1.0-2` and Apps `0.2.0-1`. It acquires the pinned unmodified official Obsidian
 amd64 DEB, verifies its SHA-256 and Debian metadata, and supplies it to the
 same transaction. Obsidian belongs to Ultra and is not rehosted by MoteBus.
@@ -140,9 +140,38 @@ installed state directly into the same CX-Mesh transaction, without an interim
 native drain executable and lifecycle hooks must match the reviewed release;
 the executable must retain sole ownership and have no diversion. An intact
 existing native migration receipt excludes recursive legacy-state copying.
-Added or obsolete CX conffile ownership remains unsupported. Its exact residual
+Added or obsolete CX conffile ownership remains unsupported for old4. Its exact residual
 record is admitted only with the installed CX-Mesh successor, reduced legacy
 file list, retained cleanup hook and sole successor executable ownership.
+
+For `cx-node 0.3.3-6` amd64, a separate reviewed native lineage may retain
+exactly one obsolete `/etc/cx-node/cx-node.toml` conffile with historical DPKG
+digest `d137b03f7f14c9c1369d3e85a9062130`. Its exact installed file list,
+checksum record, hooks and native drain executable are checked, together with
+sole package ownership, no diversions, an intact migration receipt and trusted
+existing configuration/identity files. Owner TOML bytes may differ from the
+historical stock digest; that digest identifies the DPKG record, not a request
+to reset owner configuration. No other conffile path, flag, digest or version
+is admitted by this case.
+
+The old removal hook runs `cx drain`. This case permits only the established
+`state.path = "/var/lib/cx-node"`, safe directory parents and a missing or
+regular single-link drain marker. Symlinks, hardlinks, unsafe permissions,
+custom state roots and changes between preflight and APT's lock are refused.
+The drain marker is an intentional lifecycle write; installation does not
+establish an undrained or ready runtime. Directory fingerprints may also cause
+a safe refusal if a live service changes the state during preparation. The
+APT lock is not a freeze of service-owned state or a replacement for native
+filesystem race protection.
+
+After native replacement, residual `cx-node 0.3.3-6` retains that same obsolete
+record and remains the sole TOML owner. A repeat run requires the exact
+installed CX-Mesh successor, the reviewed reduced residual file list and
+cleanup hook, no removed payload hooks, and sole successor ownership of the
+drain executable. The residual package is never purged: doing so could remove
+the still-used owner configuration. The existing no-conffile old6 path is
+unchanged. This source change does not upgrade an earlier unsupported version
+or edit the DPKG database to create an accepted state.
 
 Identity files are never edited, diverted or assigned through manual DPKG
 metadata changes. Their bytes, inode, ctime and existing access metadata must

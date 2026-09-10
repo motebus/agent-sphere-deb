@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.2.0-4` is the headless core of the four-package Agent Sphere
+`agent-sphere 0.2.0-5` is the headless core of the four-package Agent Sphere
 system. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies.
 
@@ -42,7 +42,7 @@ lifecycle. Each dependency owns its executable, service and configuration. `mote
 
 This is a composition prerelease. Each dependency remains a real native package
 with its own release and lifecycle. The complete installer requires the matching
-signed `agent-computer-v0.2.0-4` aggregate; publishing this Core source release
+signed `agent-computer-v0.2.0-5` aggregate; publishing this Core source release
 alone does not establish fleet or live runtime readiness. Existing published
 tags remain immutable.
 
@@ -64,14 +64,38 @@ identity, admission and live owner health determine usable capabilities.
 ## Complete installation and migration
 
 The canonical `agpc.sh` installer requests all four entries
-in one APT transaction: Core `0.2.0-4`, Ultra `0.1.0-1`, AGPC Manager
+in one APT transaction: Core `0.2.0-5`, Ultra `0.1.0-1`, AGPC Manager
 `3.1.0-2` and Apps `0.2.0-1`. It acquires the pinned unmodified official Obsidian
 amd64 DEB, verifies its SHA-256 and Debian metadata, and supplies it to the
 same transaction. Obsidian belongs to Ultra and is not rehosted by MoteBus.
-APT asks for confirmation. A piped installer reads `/dev/tty`; headless use
-requires explicit `--yes`. After successful installation, the installer prints
-the result and exits. Open `/usr/bin/agpc-manager` manually when needed.
-Package services retain their normal systemd lifecycle.
+The installer displays the APT simulation and asks for confirmation before
+starting the final transaction. A piped installer reads `/dev/tty`; headless use
+requires explicit `--yes`. The approved transaction runs noninteractively in a
+separate systemd job, so replacing MoteD or losing the invoking SSH session does
+not kill APT. The job uses root-private, hash-bound inputs and retains its log,
+package observations, SSH report and atomic exit record under
+`/var/lib/agpc-install.<random>/`. The caller prints the job name and paths,
+observes completion, and returns the job's original exit status. A disconnected
+caller can inspect those same files after reconnecting; absence of an exit
+record is not success. Do not start another transaction while the job is active.
+A one-hour observer timeout does not stop the worker.
+
+After APT finishes, the job checks package consistency, exact configured entry
+versions and the existing OpenSSH server. It validates `sshd -t`, enables and
+starts the existing `ssh.socket` or `ssh.service` activation path as appropriate,
+and requires an SSH banner from `127.0.0.1:22`, the existing local MoteD handoff
+target. An explicitly masked service, invalid owner configuration or unavailable
+port fails verification visibly. An unused masked socket remains unchanged. An enabled but inactive socket
+also remains stopped while its already-running service owns the listener;
+its boot enablement and the actual SSH banner are still checked.
+Only a missing, trusted `/run/sshd` directory is created for configuration
+validation; SSH keys, authentication, listen settings and firewall rules are
+not rewritten. No restart or unmask is performed. Mote identity, MoteC resource
+resolution and external reachability are separate and remain unverified here.
+
+Successful installation prints the result and exits. Open
+`/usr/bin/agpc-manager` manually for deliberate owner setup; no UI is launched.
+Component services retain their native package lifecycle.
 The frontend package and command are `agpc-manager 3.1.0-2`, paired with
 `medge 3.1.0-2`; the predecessor is `sphere-manager`. The existing `sphere`
 shortcut points to the new command. A clean installed `sphere-manager 3.1.0-1`
@@ -96,7 +120,8 @@ public archive key SHA-256 and primary fingerprint and creates only missing
 reviewed APT source/key files. Existing exact files retain their bytes and
 metadata. Custom or ambiguous sources, keys and symlink destinations are
 refused. Required native OS tools, Python 3 with `tomllib`, and GPG must already
-be available; a missing prerequisite fails before mutation.
+be available, together with a running systemd instance and trusted root-owned
+staging directories; a missing prerequisite fails before package mutation.
 
 Before any download, the installer classifies legacy transport, MCP and CX state.
 The same classifiers run again under APT's lock. Unknown package metadata,
@@ -202,6 +227,14 @@ Metadata-only APT fixtures prove Core dependency closure without manager/UI
 packages. Installer unit tests exercise four-entry selection and exact
 preflight policies. Native DPKG/APT migration fixtures use checksum-pinned old
 and new artifacts in disposable namespaces; mocked service observations do
-not establish live readiness. The signed aggregate publisher owns actual
+not establish live readiness. Detached-worker tests use real Linux namespaces
+and separate caller/worker processes, with APT and systemd explicitly represented
+by command fixtures. An independent test runs the actual OpenSSH configuration
+check and daemon in an empty network/filesystem namespace. Privileged CI requires
+the actual port-22 banner; a local single-UID namespace may report insufficient
+bind or privilege-separation permissions and does not count as that CI gate.
+Synthetic SSH configuration and test keys never leave the isolated namespace.
+These tests do not prove a reboot, real systemd boot activation or a live Mote
+connection. The signed aggregate publisher owns actual
 full-cohort dependency resolution, public artifact verification and native
 host acceptance before activation.

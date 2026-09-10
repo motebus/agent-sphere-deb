@@ -1,24 +1,24 @@
-Agent Sphere 0.2.0-4 adds a narrowly verified migration for genuine
-`cx-node 0.3.3-6` installations retaining the historical obsolete
-`/etc/cx-node/cx-node.toml` conffile record. The installed and resulting residual
-states are both admitted, preserving owner configuration and repeat installs.
+Agent Sphere 0.2.0-5 makes the final installation transaction independent of the
+invoking SSH session. After the reviewed plan is confirmed, a systemd job runs
+APT and the final checks using root-private, hash-bound inputs. Durable logs and
+an atomic result retain the original exit status, including failures. The
+installer prints recovery paths and never launches the manager automatically.
 
-The installer binds the exact ownership list, hooks, checksum record and native
-drain executable, requires the existing migration receipt and safe state path,
-and repeats the same checks under APT's lock. Other obsolete records and unsafe
-state paths remain refused. No purge, identity rewrite or DPKG database edit is
-introduced. All other component versions and migration contracts are unchanged.
-The existing direct old4 and no-conffile old6 paths remain supported.
+The final check validates the installed OpenSSH configuration, preserves the
+existing socket/service activation choice, enables and starts that valid path,
+and requires an SSH banner from the existing local MoteD target 127.0.0.1:22.
+Service masks and invalid owner configuration cause a visible failure. Keys,
+authentication, listener settings and firewall rules remain unchanged; the check
+does not establish external Mote reachability or full runtime readiness.
 
-Installation reports completion and exits without launching the manager.
-Open `agpc-manager` explicitly for owner setup. The old drain marker is a
-known lifecycle write; installed packages do not imply an undrained or ready
-runtime. The canonical download changes only through the matching signed
-aggregate publication. Installation-success event delivery is not included.
+All native component versions and reviewed migration contracts remain unchanged,
+including genuine obsolete CX6 ownership and native residual/repeat handling.
+The durable job directory is created before migration snapshots, so its creation
+does not invalidate their protected parent metadata. APT and the existing
+protocol-v3 guard remain responsible for the exact package transaction.
 
-Validation includes source checks and actual historical DEBs through the final
-CX-Mesh replacement, native residual/repeat runs, protected file metadata and
-owner unit-policy preservation, and pre-DPKG denials for changed ownership,
-hooks, drain executable and unsafe state targets. Native fixtures use isolated
-dependency metadata, a single mapped UID/GID and mocked systemctl; no live host
-installation or configuration is claimed by these fixtures.
+Validation distinguishes actual isolated Linux caller/worker behavior and
+OpenSSH configuration/banner checks from fixture systemd/package observations.
+Privileged CI must pass the real daemon/banner gate. No live host rollout,
+reboot acceptance, O/error-report delivery or Telegram event is included.
+Canonical downloads change only with the matching signed aggregate release.

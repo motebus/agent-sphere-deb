@@ -23,12 +23,12 @@ class CoreDependencyTests(unittest.TestCase):
             def fields(name,version):
                 data={'Package':name,'Version':version,'Architecture':'all','Maintainer':'Fixture <fixture@example.invalid>','Description':'Offline metadata fixture'}
                 if name=='agent-sphere':data['Depends']=', '.join(f'{n} (>= {v})' for n,v in DEPS.items()) if version=='0.2.0-2' else 'medge (>= 3.0.0-3)'
-                if name=='sphere-manager':data['Depends']='medge (>= 3.1.0-1)'
+                if name=='agpc-manager':data['Depends']='medge (>= 3.1.0-2)'
                 return data
             existing=[('agent-sphere','0.1.0-8'),('medge','3.0.0-3')] if legacy else []
             status.write_text('\n\n'.join('\n'.join(f'{k}: {v}' for k,v in dict(fields(n,v),Status='install ok installed').items()) for n,v in existing)+('\n' if existing else ''))
             before=status.read_bytes();index=[]
-            for n,v in [*DEPS.items(),('agent-sphere','0.2.0-2'),('sphere-manager','3.1.0-1'),('medge','3.1.0-1'),*existing]:
+            for n,v in [*DEPS.items(),('agent-sphere','0.2.0-2'),('agpc-manager','3.1.0-2'),('medge','3.1.0-2'),*existing]:
                 if n==missing:continue
                 data=fields(n,v);stage=root/(n+v)/'DEBIAN';stage.mkdir(parents=True)
                 (stage/'control').write_text('\n'.join(f'{k}: {v}' for k,v in data.items())+'\n')

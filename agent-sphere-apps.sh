@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
     printf '%s\n' \
         'Usage: agpc.sh [--yes] [--help]' \
-        'Install agent-sphere, agent-ultra, sphere-manager and agent-apps using the signed MoteBus APT repository.' \
+        'Install agent-sphere, agent-ultra, agpc-manager and agent-apps using the signed MoteBus APT repository.' \
         'Supports Ubuntu 24.04 and 26.04 amd64; creates only missing reviewed APT key/source files.' \
         'Downloads the pinned official Obsidian DEB for the same APT transaction.' \
         'Run as root. APT asks for confirmation unless --yes is supplied.'
@@ -479,7 +479,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.2.0-2 agent-ultra=0.1.0-1 sphere-manager=3.1.0-1 agent-apps=0.2.0-1 "$obsidian")
+packages=(agent-sphere=0.2.0-2 agent-ultra=0.1.0-1 agpc-manager=3.1.0-2 agent-apps=0.2.0-1 "$obsidian")
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove a protected mote-chatd record.
 if [[ $legacy_state == retention:* ]]; then
@@ -533,7 +533,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.2.0-2 [agent-ultra]=0.1.0-1 [sphere-manager]=3.1.0-1 [agent-apps]=0.2.0-1 [moted]=3.6.0-2 [medge]=3.1.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.1.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
+declare -A floor=([agent-sphere]=0.2.0-2 [agent-ultra]=0.1.0-1 [agpc-manager]=3.1.0-2 [agent-apps]=0.2.0-1 [moted]=3.6.0-2 [medge]=3.1.0-2 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.1.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -553,7 +553,7 @@ while IFS= read -r line; do
         if [[ -n ${floor[$name]:-} ]]; then
             dpkg --compare-versions "$new" ge "${floor[$name]}" || fail "obsolete package $name"
         fi
-        if [[ $name == agent-sphere || $name == agent-apps || $name == agent-ultra || $name == sphere-manager ]]; then
+        if [[ $name == agent-sphere || $name == agent-apps || $name == agent-ultra || $name == agpc-manager ]]; then
             [[ $new == "${floor[$name]}" ]] || fail "unexpected composition version $name"
         fi
         if [[ $name == mote-transportd && $legacy_state == ordinary:* ]]; then
@@ -653,5 +653,5 @@ apt-get -o "DPkg::Pre-Install-Pkgs::=$guard" \
     -o "DPkg::Tools::Options::$guard::InfoFD=0" \
     -o 'Dpkg::Options::=--force-confold' \
     "${confirmation[@]}" install "${packages[@]}" <&"$confirmation_fd"
-printf '%s\n' 'Agent Sphere, Agent Ultra, Sphere Manager and Agent Apps packages installed. Runtime configuration and health are separate checks.'
-printf '%s\n' 'Use sphere-manager to configure owner grants and inspect live status.'
+printf '%s\n' 'Agent Sphere, Agent Ultra, AGPC Manager and Agent Apps packages installed. Runtime configuration and health are separate checks.'
+printf '%s\n' 'Use agpc-manager to configure owner grants and inspect live status.'

@@ -32,14 +32,16 @@ class InstallerTests(unittest.TestCase):
         self.bin = self.root / "bin"
         self.bin.mkdir()
         # Trap an accidental fixed-path or PATH-based UI launch inside the fixture.
-        text = text.replace("/usr/bin/sphere-manager", str(self.bin / "sphere-manager"))
+        for name in ("agpc-manager", "sphere-manager"):
+            text = text.replace("/usr/bin/" + name, str(self.bin / name))
         self.installer.write_text(text)
         self.log = self.root / "apt-calls.jsonl"
         self.env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ['PATH'],
                         APT_TEST_LOG=str(self.log), TMPDIR=str(self.root))
         for key in ('APT_TEST_FAIL', 'APT_TEST_UID', 'APT_TEST_PLAN', 'APT_TEST_ACTIONS', 'APT_TEST_OBSIDIAN', 'APT_TEST_CHATD', 'APT_TEST_CHATD_FILE', 'APT_TEST_FINAL_CHATD', 'APT_TEST_HOOK', 'APT_TEST_PROMPT', 'APT_TEST_CHATD_ACCESS'):
             self.env.pop(key, None)
-        self.write_fake("sphere-manager", """
+        for name in ("agpc-manager", "sphere-manager"):
+            self.write_fake(name, """
 import os, pathlib, sys
 pathlib.Path(os.environ['APT_TEST_LOG'] + '.manager').touch()
 sys.exit(37)
@@ -207,7 +209,7 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-2','agent-ultra=0.1.0-1','sphere-manager=3.1.0-1','agent-apps=0.2.0-1'])
+        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-2','agent-ultra=0.1.0-1','agpc-manager=3.1.0-2','agent-apps=0.2.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][-6:], ['install', *self.calls()[1][2:]])
         self.assertNotIn('--yes', self.calls()[-1])
@@ -218,9 +220,9 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn('packages installed.', result.stdout)
-        self.assertIn('Use sphere-manager', result.stdout)
+        self.assertIn('Use agpc-manager', result.stdout)
         self.assertFalse(Path(str(self.log) + '.manager').exists(), result.stdout)
-        self.assertNotIn('Sphere Manager exited', result.stdout)
+        self.assertNotIn('AGPC Manager exited', result.stdout)
 
     def test_piped_installer_respects_interactive_refusal(self):
         result=self.run_piped_installer('n')
@@ -342,7 +344,7 @@ print(state)
         self.env['APT_TEST_UID'] = '1000'
         result = self.run_installer('--help')
         self.assertEqual(result.returncode, 0)
-        self.assertIn('agent-sphere, agent-ultra, sphere-manager and agent-apps', result.stdout)
+        self.assertIn('agent-sphere, agent-ultra, agpc-manager and agent-apps', result.stdout)
         self.assertEqual(self.calls(), [])
 
     def test_missing_apt_is_rejected(self):

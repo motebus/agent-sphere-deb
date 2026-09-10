@@ -7,12 +7,12 @@ through native APT/DPKG dependencies.
 ```text
 agent-sphere    Core: AGOS, CX-Mesh, model execution, Mote and local I/O
 agent-ultra     Redixs, local Comm/Telegram, Obsidian and vault sync
-sphere-manager Dedicated native TUI/CLI backed by MEdge management
+agpc-manager Dedicated native TUI/CLI backed by MEdge management
 agent-apps     Jujue, iAgent, SS-WebOS, MDesk and UChat
 ```
 
 Core contains no TUI and does not require the manager or desktop applications.
-Sphere Manager owns its frontend; MEdge owns the headless management backend
+AGPC Manager owns its frontend; MEdge owns the headless management backend
 and existing MBox/MDrive/MCP I/O implementation. MEdge is reached through the
 manager package dependency, and its admitted I/O still uses MoteD and MLINK.
 Exiting the management UI must not stop the backend or Core.
@@ -43,7 +43,7 @@ lifecycle. Each dependency owns its executable, service and configuration. `mote
 This source is an **unreleased four-package candidate**. Native Mote MCPd,
 CX-Mesh artifacts must satisfy the new floors, and the
 four-entry aggregate additionally requires actual Redixs, Comm, Jujue, iAgent,
-MEdge management and Sphere Manager artifacts. No alias or empty package may
+MEdge management and AGPC Manager artifacts. No alias or empty package may
 substitute for those runtimes. Pending exact migration hashes block release
 manifest generation. Existing published tags remain immutable.
 
@@ -65,13 +65,13 @@ identity, admission and live owner health determine usable capabilities.
 ## Complete installation and migration
 
 The canonical `agpc.sh` installer requests all four entries
-in one APT transaction: Core `0.2.0-2`, Ultra `0.1.0-1`, Sphere Manager
-`3.1.0-1` and Apps `0.2.0-1`. It acquires the pinned unmodified official Obsidian
+in one APT transaction: Core `0.2.0-2`, Ultra `0.1.0-1`, AGPC Manager
+`3.1.0-2` and Apps `0.2.0-1`. It acquires the pinned unmodified official Obsidian
 amd64 DEB, verifies its SHA-256 and Debian metadata, and supplies it to the
 same transaction. Obsidian belongs to Ultra and is not rehosted by MoteBus.
 APT asks for confirmation. A piped installer reads `/dev/tty`; headless use
 requires explicit `--yes`. After successful installation, the installer prints
-the result and exits. Open `/usr/bin/sphere-manager` manually when needed.
+the result and exits. Open `/usr/bin/agpc-manager` manually when needed.
 Package services retain their normal systemd lifecycle.
 The byte-identical `agent-sphere-apps.sh` asset remains a compatibility entry.
 

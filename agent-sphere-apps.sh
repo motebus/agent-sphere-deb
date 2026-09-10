@@ -182,6 +182,13 @@ classify_legacy_chatd() {
         return 1
     }
     if record=$(dpkg-query -W -f='${db:Status-Status}\n${Version}\n${Conffiles}\n' mote-chatd 2>/dev/null); then
+        # DPKG may retain a relationship-only entry for an absent package.
+        # Admit only its exact empty Version/Architecture/Conffiles identity.
+        if [[ $record == not-installed ]]; then
+            identity=$(dpkg-query -W -f='${Architecture}\n${Status}' mote-chatd 2>/dev/null) || return 1
+            [[ $identity == $'\nunknown ok not-installed' ]] || { legacy_error 'Unreviewed empty legacy package record.'; return 1; }
+            printf 'absent\n'; return 0
+        fi
         local -a lines
         mapfile -t lines <<< "$record"
         [[ ${#lines[@]} -ge 2 ]] || { legacy_error 'Cannot classify legacy mote-chatd ownership.'; return 1; }
@@ -298,7 +305,7 @@ def checked(path, digest=None, mode=None, optional=False):
 def classify():
     result = subprocess.run(['dpkg-query', '-W', '-f=${Version}\n${Architecture}\n${Status}\n${Conffiles}',
                              'mote-bridge-mcp'], capture_output=True, text=True)
-    if result.returncode == 1 and not result.stdout:
+    if (result.returncode == 1 and not result.stdout) or (result.returncode == 0 and result.stdout == '\n\nunknown ok not-installed\n'):
         return 'absent'
     if result.returncode:
         raise ValueError('cannot inspect legacy MCP package metadata')
@@ -389,7 +396,7 @@ def checked(path, digest=None, mode=None, optional=False):
 
 def query(name):
     result=subprocess.run(['dpkg-query','-W','-f=${Version}\n${Architecture}\n${Status}\n${Conffiles}',name],capture_output=True,text=True)
-    if result.returncode==1 and not result.stdout:return None
+    if (result.returncode==1 and not result.stdout) or (result.returncode==0 and result.stdout=='\n\nunknown ok not-installed\n'):return None
     if result.returncode:raise ValueError('cannot inspect CX predecessor package')
     return result.stdout
 

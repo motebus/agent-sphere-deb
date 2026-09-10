@@ -73,6 +73,13 @@ class McpPreflightTests(unittest.TestCase):
         with mock.patch.object(module.os.path,'lexists',return_value=True):
             with self.assertRaisesRegex(ValueError,'unreviewed legacy MCP'):module.classify()
 
+    def test_exact_empty_relationship_record_is_absent(self):
+        self.record='\n\nunknown ok not-installed\n'
+        self.assertEqual(module.classify(),'absent');self.assertEqual(self.checked,[])
+        for record in ('3.0.0-2\n\nunknown ok not-installed\n','\namd64\nunknown ok not-installed\n','\n\ninstall ok not-installed\n','\n\nunknown ok not-installed\n /etc/owned '+ 'a'*32):
+            self.record=record
+            with self.assertRaises(ValueError):module.classify()
+
     def test_absence_and_query_failure_are_distinct(self):
         with mock.patch.object(module.subprocess,'run',return_value=subprocess.CompletedProcess([],1,'','')):
             self.assertEqual(module.classify(),'absent')

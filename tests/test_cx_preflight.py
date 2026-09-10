@@ -47,4 +47,11 @@ class CxPreflightTests(unittest.TestCase):
    with self.assertRaisesRegex(ValueError,'unexpected Mesh cleanup'):module.classify()
  def test_absent_predecessors_do_not_require_removed_config(self):
   self.records={};self.assertEqual(module.classify(),'absent');self.assertEqual(self.files,[])
+class QueryTests(unittest.TestCase):
+ def test_only_exact_empty_relationship_record_is_absent(self):
+  with mock.patch.object(module.subprocess,'run',return_value=subprocess.CompletedProcess([],0,'\n\nunknown ok not-installed\n','')):
+   self.assertIsNone(module.query('cx-node'))
+  for record in ('0.3.3-6\n\nunknown ok not-installed\n','\namd64\nunknown ok not-installed\n','\n\ninstall ok not-installed\n','\n\nunknown ok not-installed\n /etc/owned '+ 'a'*32):
+   with mock.patch.object(module.subprocess,'run',return_value=subprocess.CompletedProcess([],0,record,'')):
+    self.assertEqual(module.query('cx-node'),record)
 if __name__=='__main__':unittest.main(verbosity=2)

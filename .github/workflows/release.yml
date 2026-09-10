@@ -16,6 +16,10 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+      - name: Install namespace verification dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends bubblewrap gnupg
       - name: Build and verify package and installer
         run: |
           python3 scripts/package.py build

@@ -6,7 +6,10 @@ ROOT=pathlib.Path(__file__).resolve().parents[1]
 source=(ROOT/'agpc.sh').read_text()
 fragment=source.split('# BEGIN SIGNED BOOTSTRAP\n',1)[1].split('# END SIGNED BOOTSTRAP\n',1)[0]
 with tempfile.TemporaryDirectory(prefix='agpc-bootstrap-') as tmp:
- root=pathlib.Path(tmp);fixture=root/'fixture';fixture.mkdir()
+ root=pathlib.Path(tmp)
+ # Public fixture inputs must be traversable after namespace capability drop.
+ root.chmod(0o755)
+ fixture=root/'fixture';fixture.mkdir()
  (fixture/'parent-namespaces.json').write_text(json.dumps({name:os.readlink('/proc/self/ns/'+name) for name in ('user','net','mnt')}))
  (fixture/'agentsphere-bootstrap.sh').write_text(fragment)
  shutil.copyfile(ROOT/'tests/fixtures/bootstrap-fixture.py',fixture/'test-bootstrap.py')

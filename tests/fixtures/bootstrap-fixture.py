@@ -1,8 +1,14 @@
 #!/usr/bin/python3
 """Executed only in an isolated fixture namespace with fake fixed HTTPS download."""
-import hashlib,json,os,pathlib,shutil,subprocess
+import hashlib,json,os,pathlib,shutil,socket,subprocess
 P=pathlib.Path
 assert os.geteuid()==0 and P('/.bootstrap-fixture').is_file()
+parent=json.loads(P('/fixture/parent-namespaces.json').read_text())
+assert all(os.readlink('/proc/self/ns/'+name)!=identifier for name,identifier in parent.items())
+status=dict(line.split(':',1) for line in P('/proc/self/status').read_text().splitlines() if ':' in line)
+assert int(status['CapEff'].strip(),16)==0
+assert [name for _,name in socket.if_nameindex()]==['lo']
+assert not P('/home').exists() and not P('/sys').exists()
 F='/fixture/agentsphere-bootstrap.sh';key=P('/etc/apt/keyrings/medge-archive-keyring.gpg');source=P('/etc/apt/sources.list.d/medge.sources');checks=[]
 def run(expr,ok=True,extra=None):
  env={'PATH':'/fixture/bin:/usr/bin:/bin','LC_ALL':'C'};env.update(extra or {})
@@ -40,5 +46,5 @@ reset();run('agentsphere_platform_check',False,{'PATH':'/fixture/missing-gpg'});
 reset();run('agentsphere_apt_bootstrap',False,{'BAD_KEY':'1'});assert not key.exists() and not source.exists();checks.append('bad downloaded key rejected before publication')
 reset();target=P('/etc/owner-key');target.write_bytes(b'untouched');key.parent.mkdir();key.symlink_to(target);before=meta(target);run('agentsphere_apt_bootstrap',False);assert meta(target)==before and key.is_symlink();checks.append('symlinked key refused and target untouched')
 run('agentsphere_launch_manager');run('agentsphere_launch_manager --yes');run('agentsphere_launch_manager --invalid',False);checks.append('noTTY and explicit yes skip UI; bad flag rejected')
-P('/evidence/result.json').write_text(json.dumps({'ok':True,'checks':checks,'scope':'isolated namespace; fixed download adapter returns reviewed public key; real GPG SHA/fingerprint inspection; no network, APT transaction or host changes'},indent=2)+'\n')
-print(json.dumps({'ok':True,'checks':len(checks)}))
+result={'ok':True,'checks':checks,'isolation':{'private_user_network_mount_namespaces':True,'effective_capabilities':0},'scope':'isolated namespace; fixed download adapter returns reviewed public key; real GPG SHA/fingerprint inspection; no network, APT transaction or host changes'}
+print(json.dumps(result))

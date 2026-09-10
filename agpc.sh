@@ -598,14 +598,14 @@ if $public_cx_migration; then
     path=${artifacts[cx-mesh]}
     [[ ! -L $path && -f $path ]] || fail 'unsafe CX artifact'
     [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected CX artifact architecture'
-    printf '%s  %s\n' PENDING_REVIEWED_CX_MESH_MAIN_SHA256 "$path" | sha256sum --check --status || fail 'CX artifact changed'
+    printf '%s  %s\n' 5c8de2c9ff7fe2143514be6069c8a7c10fe83da8cab8bee30731c360324c8746 "$path" | sha256sum --check --status || fail 'CX artifact changed'
 fi
 if [[ -n ${removed[mote-bridge-mcp]:-} ]]; then
     [[ ${installed[mote-mcpd]:-} == 3.0.0-3 ]] || fail 'MCP migration requires exact mote-mcpd 3.0.0-3'
     path=${artifacts[mote-mcpd]}
     [[ ! -L $path && -f $path ]] || fail 'unsafe MCP artifact'
     [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected MCP artifact architecture'
-    printf '%s  %s\n' 1bd364189e397e4d67f68318ab84963a38fdb813df9f7a6a1fa800364dc4caf2 "$path" | sha256sum --check --status || fail 'MCP artifact changed'
+    printf '%s  %s\n' b4b1b640cb32f087af0a22b40f3edc85562bc9c87551ea60b7f6f7d80ca5fcf7 "$path" | sha256sum --check --status || fail 'MCP artifact changed'
 fi
 GUARD
 } > "$temporary/guard"

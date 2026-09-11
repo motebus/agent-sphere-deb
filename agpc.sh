@@ -1009,7 +1009,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.2.0-5 agent-ultra=0.1.0-1 agpc-manager=3.1.0-2 agent-apps=0.2.0-1 "$obsidian")
+packages=(agent-sphere=0.2.0-6 agent-ultra=0.1.0-1 agpc-manager=3.1.0-2 agent-apps=0.2.0-2 "$obsidian")
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove a protected mote-chatd record.
 if [[ $legacy_state == retention:* ]]; then
@@ -1070,7 +1070,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.2.0-5 [agent-ultra]=0.1.0-1 [agpc-manager]=3.1.0-2 [agent-apps]=0.2.0-1 [moted]=3.6.0-2 [medge]=3.1.0-2 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.1.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
+declare -A floor=([agent-sphere]=0.2.0-6 [agent-ultra]=0.1.0-1 [agpc-manager]=3.1.0-2 [agent-apps]=0.2.0-2 [moted]=3.6.0-2 [medge]=3.1.0-2 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.1.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'

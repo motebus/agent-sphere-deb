@@ -194,6 +194,39 @@ print(state)
             'sphere-manager 3.1.0-1 amd64 none > - - none **REMOVE**\n')
         return artifact
 
+    def test_container_runtime_addition_is_refused_before_final_transaction(self):
+        for name in ('docker.io', 'docker-ce', 'podman', 'containerd.io', 'runc', 'moby-engine'):
+            with self.subTest(name=name):
+                if self.log.exists(): self.log.unlink()
+                self.env['APT_TEST_PLAN']=f'Inst {name} (1.0 stable)'
+                result=self.run_installer('--yes')
+                self.assertNotEqual(result.returncode,0)
+                self.assertIn('Refusing container runtime package',result.stderr)
+                self.assertEqual(len(self.calls()),2)
+
+    def test_container_runtime_late_install_or_configure_is_refused_under_lock(self):
+        for action in ('docker.io - - none < 1.0 amd64 none /cache/docker.deb',
+                       'containerd 1.0 amd64 none = 1.0 amd64 none **CONFIGURE**'):
+            with self.subTest(action=action):
+                self.env['APT_TEST_ACTIONS']=action+'\n'
+                result=self.run_installer('--yes')
+                self.assertNotEqual(result.returncode,0)
+                self.assertIn('outside native AGPC installation',result.stderr)
+
+    def test_unrelated_fixture_data_and_container_commands_are_not_touched(self):
+        owner_data=self.root/'existing-container-data';owner_data.write_bytes(b'owner data')
+        before=owner_data.stat()
+        for name in ('docker','podman'):
+            self.write_fake(name, "import os, pathlib, sys; pathlib.Path(os.environ['APT_TEST_LOG']+'.container').touch(); sys.exit(89)")
+        result=self.run_installer('--yes')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertFalse(Path(str(self.log)+'.container').exists())
+        self.assertEqual(owner_data.read_bytes(),b'owner data')
+        after=owner_data.stat()
+        self.assertEqual((before.st_ino,before.st_mtime_ns,before.st_ctime_ns),
+                         (after.st_ino,after.st_mtime_ns,after.st_ctime_ns))
+        self.assertFalse(any('remove' in call or 'purge' in call for call in self.calls()))
+
     def test_clean_manager_rename_requires_exact_artifact_in_same_transaction(self):
         self.manager_migration()
         result=self.run_installer('--yes');self.assertEqual(result.returncode,0,result.stderr)

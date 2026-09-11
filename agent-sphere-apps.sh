@@ -457,6 +457,14 @@ trap 'rmdir -- "$job_stage" 2>/dev/null || true' EXIT
 
 # One classifier is used before downloads and again under APT's lock.
 # It reads package metadata and hook bytes, never topology values.
+# Standard AGPC uses native packages; do not add a container runtime to this transaction.
+agentsphere_container_runtime_package() {
+    case "${1%%:*}" in
+        docker|docker[.+-]*|moby|moby-*|podman|podman-*|containerd|containerd[.-]*|runc|crun|buildah|nerdctl|cri-o|cri-o-*|lxc|lxc-*|lxd|lxd-*|incus|incus-*|systemd-container) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 classify_legacy_chatd() {
     local record query_status state version line path digest flag extra
     local protected=0 normal=0 other=0 identity hook expected actual
@@ -1015,7 +1023,7 @@ fi
 # APT protocol v3 is checked again under APT's lock before any DPKG action.
 {
 printf '%s\n' '#!/bin/bash' 'set -euo pipefail'
-declare -f classify_legacy_chatd classify_legacy_mcp classify_legacy_cx classify_legacy_manager
+declare -f agentsphere_container_runtime_package classify_legacy_chatd classify_legacy_mcp classify_legacy_cx classify_legacy_manager
 printf 'expected_legacy_state=%q\n' "$legacy_state"
 printf 'expected_mcp_state=%q\n' "$mcp_state"
 printf 'expected_cx_state=%q\n' "$cx_state"
@@ -1075,6 +1083,7 @@ while IFS= read -r line; do
         [[ -n ${replacement[$name]:-} && $old == "${reviewed_old[$name]}" && $new == - && -z ${removed[$name]:-} ]] || fail "removal of $name"
         removed[$name]=true
     elif [[ $action == '**CONFIGURE**' || $action == /*.deb ]]; then
+        ! agentsphere_container_runtime_package "$name" || fail "container runtime package $name is outside native AGPC installation"
         [[ $name != mote-chatd || $legacy_state == retention:* ]] || fail 'retention is not admitted for this ownership state'
         case "$name" in sphere-manager|mote-sync|mote-syncd|cx-node|cx-agent|codex-mesh|model-node|model-grid|mcp-run|ultra-mcp-ssh|mote-bridge-mcp) fail "retired package $name" ;; esac
         [[ $new != - ]] || fail 'missing target version'
@@ -1172,7 +1181,9 @@ while read -r action package rest; do
                 *) fail "Refusing package removal: $name. Package installation was not started." ;;
             esac ;;
         Purg|E:) fail 'APT error or purge refused. Package installation was not started.' ;;
-        Inst) planned[$name]=true ;;
+        Inst)
+            ! agentsphere_container_runtime_package "$name" || fail "Refusing container runtime package $name. Package installation was not started."
+            planned[$name]=true ;;
     esac
 done < "$temporary/plan"
 for name in "${!removed[@]}"; do

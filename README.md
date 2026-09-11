@@ -2,7 +2,11 @@
 
 `agent-sphere 0.2.0-5` is the headless core of the four-package Agent Sphere
 system. It composes Agent intelligence, model execution, CX-Mesh and Mote
-through native APT/DPKG dependencies.
+through native APT/DPKG dependencies and systemd services. This is the standard
+installation: Docker, Podman and other container runtimes are not prerequisites.
+The installer refuses a container runtime added to its simulated or locked APT
+transaction. Existing unrelated container software and data are left alone;
+there is no removal step or alternate installation profile.
 
 ```text
 agent-sphere    Core: AGOS, CX-Mesh, model execution, Mote and local I/O
@@ -127,8 +131,14 @@ Before any download, the installer classifies legacy transport, MCP and CX state
 The same classifiers run again under APT's lock. Unknown package metadata,
 hooks, helper bytes, unsafe identity metadata or customized old system MCP
 entries stop before DPKG. Diagnostics do not print identity or configuration
-values. Python's standard TOML reader is used only by this installer preflight;
-it introduces no installed Python daemon or alternate package manager.
+values.
+
+The installer has a scoped exception to the native Rust runtime policy: its
+short-lived Python standard-library helpers parse TOML/JSON, inspect ownership
+metadata, and verify OpenSSH without extra parser dependencies. They run from
+the reviewed bootstrap or private transaction stage and install no Python daemon
+or alternate package manager. They remain installer support; a future replacement
+requires its own review and does not change the component runtime language policy.
 
 Ordinary `mote-chatd 2.0.0-4` owns only its normal env conffile and can be
 replaced by the exact transport `2.0.0-6` artifact after its removal hooks are

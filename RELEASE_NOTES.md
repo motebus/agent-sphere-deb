@@ -22,3 +22,8 @@ OpenSSH configuration/banner checks from fixture systemd/package observations.
 Privileged CI must pass the real daemon/banner gate. No live host rollout,
 reboot acceptance, O/error-report delivery or Telegram event is included.
 Canonical downloads change only with the matching signed aggregate release.
+
+Native APT/DPKG and systemd remain the standard installation. The simulated and
+locked transaction now reject container runtime package additions, including
+transitive additions. Existing unrelated container software and data are preserved.
+This guard does not claim a live host rollout or change component dependencies.

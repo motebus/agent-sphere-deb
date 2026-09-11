@@ -1,7 +1,7 @@
 #!/bin/bash
 # Empty, network-isolated namespace. No host package database or services.
 set -euo pipefail
-[ "$#" -eq 5 ] || { echo 'usage: both|disabled|masked new.deb old-mesh.deb historical.deb old1.deb' >&2; exit 2; }
+[ "$#" -eq 7 ] || { echo 'usage: both|disabled|masked new.deb old-mesh.deb historical.deb old1.deb old6.deb baseline.deb' >&2; exit 2; }
 scenario=$1
 source_root=$(CDPATH= cd -- "$(dirname "$0")/../../.." && pwd)
 : "${TMPDIR:?set a short workspace TMPDIR}"
@@ -15,7 +15,7 @@ done
 for tool in gpg curl realpath bash sh dash python3 perl apt-get apt-mark dpkg dpkg-deb dpkg-query dpkg-split dpkg-divert stat chmod chown install mkdir mktemp mv rm cp ln cat sha256sum md5sum touch id readlink true false dirname gzip xz tar cmp sed grep cut find diff awk tr getent wc hostname deb-systemd-helper deb-systemd-invoke; do
  args+=(--ro-bind "/usr/bin/$tool" "/usr/bin/$tool")
 done
-args+=(--ro-bind /usr/sbin/ldconfig /usr/sbin/ldconfig --ro-bind /usr/sbin/start-stop-daemon /usr/sbin/start-stop-daemon --ro-bind "$source_root/tests/fixtures/cx-retirement/fixture-systemctl.py" /usr/bin/systemctl --dir /packages --ro-bind "$(realpath "$2")" /packages/new.deb --ro-bind "$(realpath "$3")" /packages/old-mesh.deb --ro-bind "$(realpath "$4")" /packages/historical.deb --ro-bind "$(realpath "$5")" /packages/old1.deb --ro-bind /usr/lib/os-release /host-os-release --ro-bind "$source_root/tests/fixtures/medge-archive-keyring.gpg" /fixture-key.gpg --ro-bind "$source_root" /source --bind "$fixture_tmp" /tmp --setenv TMPDIR /tmp --setenv PATH /usr/bin:/bin:/usr/sbin:/sbin --chdir /tmp)
+args+=(--ro-bind /usr/sbin/ldconfig /usr/sbin/ldconfig --ro-bind /usr/sbin/start-stop-daemon /usr/sbin/start-stop-daemon --ro-bind "$source_root/tests/fixtures/cx-retirement/fixture-systemctl.py" /usr/bin/systemctl --dir /packages --ro-bind "$(realpath "$2")" /packages/new.deb --ro-bind "$(realpath "$3")" /packages/old-mesh.deb --ro-bind "$(realpath "$4")" /packages/historical.deb --ro-bind "$(realpath "$5")" /packages/old1.deb --ro-bind "$(realpath "$6")" /packages/old6.deb --ro-bind "$(realpath "$7")" /packages/baseline.deb --ro-bind /usr/lib/os-release /host-os-release --ro-bind "$source_root/tests/fixtures/medge-archive-keyring.gpg" /fixture-key.gpg --ro-bind "$source_root" /source --bind "$fixture_tmp" /tmp --setenv TMPDIR /tmp --setenv PATH /usr/bin:/bin:/usr/sbin:/sbin --chdir /tmp)
 status=0
 bwrap "${args[@]}" /bin/sh -eu -c 'touch /.cx-rename-fixture; python3 /source/tests/fixtures/cx-retirement/lifecycle.py "$1"' sh "$scenario" || status=$?
 if [ -n "${FIXTURE_LOG_DIR:-}" ]; then

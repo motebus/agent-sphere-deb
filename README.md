@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.2.0-8` is the headless core of the four-package Agent Sphere
+`agent-sphere 0.2.0-9` is the headless core of the four-package Agent Sphere
 system. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -46,7 +46,7 @@ lifecycle. Each dependency owns its executable, service and configuration. `mote
 
 This is a composition prerelease. Each dependency remains a real native package
 with its own release and lifecycle. The complete installer requires the matching
-signed `agent-computer-v0.2.0-8` aggregate; publishing this Core source release
+signed `agent-computer-v0.2.0-9` aggregate; publishing this Core source release
 alone does not establish fleet or live runtime readiness. Existing published
 tags remain immutable.
 
@@ -68,7 +68,7 @@ identity, admission and live owner health determine usable capabilities.
 ## Complete installation and migration
 
 The canonical `agpc.sh` installer requests all four entries
-in one APT transaction: Core `0.2.0-8`, Ultra `0.1.0-1`, AGPC Manager
+in one APT transaction: Core `0.2.0-9`, Ultra `0.1.0-1`, AGPC Manager
 `3.2.0-1` and Apps `0.2.0-3`. Apps requires `uchat >= 3.1.0-1`, bringing `uchatd` and its private Redis
 instance into fresh installs and existing AGPC upgrades. The chat daemon owns
 Inbox persistence and delivery; CX-Mesh retains execution authority.
@@ -275,3 +275,9 @@ verification. No account password is collected by the installer. Root-only
 installation without a selected login account reports the required manager
 setup. Open AGPC Manager explicitly and select **Mesh → uChat** to configure
 membership once and enable chat on that mesh.
+
+The obsolete CX residual classifier accepts both native DPKG file-list forms:
+retained shared directories plus the obsolete TOML, or only the obsolete TOML
+when other installed packages already own those directories. Both forms keep
+exact predecessor ownership and cleanup-hook checks. Native fixtures reproduce
+the historical 1.1 baseline and guarded 1.2 upgrade without DPKG database edits.

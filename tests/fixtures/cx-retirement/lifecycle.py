@@ -15,13 +15,26 @@ def metadata():
 def main():
  assert os.geteuid()==0 and Path('/.cx-rename-fixture').exists()
  os.umask(0o022)
- mode=sys.argv[1];assert mode in ['probe','both','disabled','masked']
+ mode=sys.argv[1];assert mode in ['probe','both','disabled','masked','system-dirs','lab-residual']
  Path('/etc/passwd').write_text('root:x:0:0:root:/root:/bin/sh\ncx-node:x:0:0:fixture:/var/lib/cx-node:/usr/sbin/nologin\n');Path('/etc/group').write_text('root:x:0:\ncx-node:x:0:\n')
  for name in ('/etc/apt/apt.conf.d','/etc/apt/preferences.d','/etc/apt/sources.list.d','/var/lib/apt/lists/partial','/var/cache/apt/archives/partial','/var/log/apt','/var/tmp','/var/lib/dpkg','/run/systemd/system'):
   Path(name).mkdir(parents=True,exist_ok=True)
  Path('/var/lib/dpkg/status').touch();Path('/etc/apt/sources.list').touch();os.environ['DEBIAN_FRONTEND']='noninteractive'
  deps=[dummy(n) for n in ('libc6','libgcc-s1','adduser','moted','mote-bridge-mcp','mote-mcpd','mote-chatd','mote-transportd','systemd','codex','chatgpt','motemcp')];run('dpkg','-i',*deps)
- run('dpkg','-i','/packages/historical.deb');run('dpkg','-i','/packages/old1.deb');run('dpkg','-i','/packages/old-mesh.deb')
+ if mode in ('system-dirs','lab-residual'):
+  # Real base packages own these shared directories before CX is installed.
+  seed=Path(dummy('system-directory-owner'))
+  for directory in ('usr/bin','usr/lib','usr/libexec'):(Path('/tmp/build/system-directory-owner')/directory).mkdir(parents=True,exist_ok=True)
+  run('dpkg-deb','--build','--root-owner-group','/tmp/build/system-directory-owner',str(seed));run('dpkg','-i',str(seed))
+ run('dpkg','-i','/packages/historical.deb');run('dpkg','-i','/packages/old1.deb')
+ if mode=='lab-residual':run('dpkg','-i','/packages/old6.deb')
+ run('dpkg','-i','/packages/old-mesh.deb')
+ if mode=='lab-residual':
+  # Construct the genuine previously migrated 1.1 baseline, without rewriting
+  # status, file lists or conffile ownership. The current guarded upgrade follows.
+  run('apt-get','-o','APT::Sandbox::User=root','-o','Dpkg::Options::=--force-confold','-y','install','/packages/baseline.deb')
+  assert Path('/var/lib/dpkg/info/cx-node.list').read_text()=='/etc/cx-node/cx-node.toml\n'
+
  expected=' /etc/cx-node/cx-node.toml d137b03f7f14c9c1369d3e85a9062130 obsolete'
  assert record().endswith(expected),record()
  paths=[Path('/etc/cx-node/cx-node.toml'),Path('/etc/cx-node/cx-node-mchat.env'),Path('/etc/mote/codex-mesh/config.json'),Path('/etc/codex/skills/codex-mesh/SKILL.md'),Path('/var/lib/cx-node/state/runtime-migration.json')]
@@ -43,7 +56,10 @@ def main():
   assert status==fingerprint(Path('/var/lib/dpkg/status'))
   assert protected==fingerprint(Path('/etc/cx-node/cx-node-mchat.env'))
   negative.append(label)
- if mode!='probe':
+ if mode=='lab-residual':
+  for name in ('/var/lib/dpkg/info/cx-node.list','/var/lib/dpkg/info/cx-node.postrm'):
+   p=Path(name);original=p.read_bytes();p.write_bytes(original+b'\n/etc/foreign\n');denied('changed residual '+name);p.write_bytes(original)
+ elif mode!='probe':
   for name in ('/var/lib/dpkg/info/cx-node.list','/var/lib/dpkg/info/cx-node.prerm','/usr/bin/cx'):
    p=Path(name);original=p.read_bytes();p.write_bytes(original+b'\n/etc/mote/foreign/locked-mchat.env\n');denied('changed '+name);p.write_bytes(original)
   config=paths[0];original=config.read_bytes();assert b'path = "/var/lib/cx-node"' in original
@@ -99,7 +115,10 @@ def main():
   if mode=='disabled':assert not Path('/etc/systemd/system/multi-user.target.wants/cx-mesh.service').is_symlink()
   if mode=='masked':assert Path('/etc/systemd/system/cx-mesh.service').readlink()==Path('/dev/null')
   assert Path('/var/lib/cx-node/state/draining').is_file() # Known drain mutation; not Ready evidence.
- value={'schema':'cx1-retirement.native-migration/v1','scenario':mode,'passed':True,'native_chain':['0.3.1-4','0.3.3-1','cx-mesh1.2.0-1'],'no_status_file_edit':True,'no_purge':True,'config_identity_receipt_session_full_metadata_preserved':True,'dependency_standins':True,'systemctl_mocked':True,'single_mapped_uid':True,'live_ready':False,'debs_sha256':{n:hashlib.sha256(Path('/packages/'+n+'.deb').read_bytes()).hexdigest() for n in ['historical','old1','old-mesh','new']}}
+ value={'schema':'cx1-retirement.native-migration/v1','scenario':mode,'passed':True,'native_chain':['0.3.1-4','0.3.3-1','cx-mesh1.2.0-1'],'no_status_file_edit':True,'no_purge':True,'config_identity_receipt_session_full_metadata_preserved':True,'dependency_standins':True,'systemctl_mocked':True,'single_mapped_uid':True,'live_ready':False,'debs_sha256':{n:hashlib.sha256(Path('/packages/'+n+'.deb').read_bytes()).hexdigest() for n in ['historical','old1','old6','old-mesh','baseline','new']}}
+ if mode=='lab-residual':value['native_chain']=['0.3.1-4','0.3.3-1','0.3.3-6','cx-mesh1.1.0-1','cx-mesh1.2.0-1']
+ value['system_directory_ownership']=mode in ('system-dirs','lab-residual')
+ value['residual_list_sha256']=hashlib.sha256(Path('/var/lib/dpkg/info/cx-node.list').read_bytes()).hexdigest()
  value.update({'production_missing_source_bootstrap':mode!='probe','production_cx_classifier_and_locked_guard':mode!='probe','residual_native_repeat':mode!='probe','denied_before_dpkg':negative,'drain_marker_is_expected_mutation':True})
  Path('/tmp/acceptance.json').write_text(json.dumps(value,indent=2)+'\n');print(json.dumps(value))
 if __name__=='__main__':main()

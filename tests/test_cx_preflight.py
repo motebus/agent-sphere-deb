@@ -1,5 +1,5 @@
 """Exact embedded CX state classification; no host identity or DPKG writes."""
-import subprocess,types,unittest
+import hashlib,os,subprocess,tempfile,types,unittest
 from pathlib import Path
 from unittest import mock
 SOURCE=(Path(__file__).resolve().parents[1]/'agent-sphere-apps.sh').read_text()
@@ -87,7 +87,7 @@ class Cx6ObsoleteTests(unittest.TestCase):
   with self.assertRaisesRegex(ValueError,'exact installed'):module.classify()
   self.records['cx-mesh']='1.1.0-1\namd64\ninstall ok installed\n'
   self.assertIn('cx-node=-',module.classify())
-  self.assertIn(('/var/lib/dpkg/info/cx-node.list',{'digest':module.CX6_OBSOLETE_RESIDUAL_LIST,'mode':0o644,'limit':1048576}),self.seen)
+  self.assertIn(('/var/lib/dpkg/info/cx-node.list',{'digest':module.CX6_RESIDUAL_LISTS,'mode':0o644,'limit':1048576}),self.seen)
   self.assertFalse(any(p=='/var/lib/dpkg/info/cx-node.prerm' for p,_ in self.seen))
   with mock.patch.object(module.os.path,'lexists',side_effect=lambda p:p.endswith('.prerm')):
    with self.assertRaisesRegex(ValueError,'residual payload'):module.classify()
@@ -147,4 +147,18 @@ class Cx4Tests(unittest.TestCase):
    module.cx4_state('deinstall ok config-files',self.files)
   self.assertEqual(self.files['/var/lib/dpkg/info/cx-node.list'][0],module.CX4_RESIDUAL_LIST)
   self.assertNotIn('/usr/bin/cx',self.files)
+
+class ResidualDigestTests(unittest.TestCase):
+ def test_only_two_native_lists_are_accepted(self):
+  with tempfile.TemporaryDirectory() as directory:
+   path=Path(directory)/'cx-node.list';path.touch(mode=0o600)
+   for content in ('/usr\n/usr/bin\n/usr/lib\n/usr/libexec\n/etc/cx-node/cx-node.toml\n','/etc/cx-node/cx-node.toml\n'):
+    path.write_text(content)
+    result=module.checked(str(path),digest=module.CX6_RESIDUAL_LISTS,uid=os.getuid())
+    self.assertEqual(result[0],hashlib.sha256(content.encode()).hexdigest())
+   for content in ('','/etc/cx-node/cx-node-mchat.env\n','/etc/cx-node/cx-node.toml\n/etc/foreign\n'):
+    path.write_text(content)
+    with self.assertRaisesRegex(ValueError,'unreviewed CX removal hook'):
+     module.checked(str(path),digest=module.CX6_RESIDUAL_LISTS,uid=os.getuid())
+
 if __name__=='__main__':unittest.main(verbosity=2)

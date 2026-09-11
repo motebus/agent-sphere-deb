@@ -51,12 +51,22 @@
     },
     {
       "name": "mote-mcpd",
-      "version": "3.0.0-3",
+      "version": "3.1.0-1",
+      "architecture": "amd64"
+    },
+    {
+      "name": "mote-mcp-ultra",
+      "version": "0.1.0-1",
       "architecture": "amd64"
     },
     {
       "name": "cx-mesh",
       "version": "1.2.0-1",
+      "architecture": "amd64"
+    },
+    {
+      "name": "cx-loop",
+      "version": "0.1.0-4",
       "architecture": "amd64"
     }
   ],

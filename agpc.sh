@@ -633,7 +633,7 @@ def classify():
         successor = subprocess.run(['dpkg-query', '-W', '-f=${Version}|${Architecture}|${Status}',
                                     'mote-mcpd'], capture_output=True, text=True)
         if (owner.returncode or owner.stdout.strip() != 'mote-mcpd: ' + NORMAL or
-                successor.returncode or successor.stdout != '3.0.0-3|amd64|install ok installed'):
+                successor.returncode or successor.stdout not in ('3.0.0-3|amd64|install ok installed', '3.1.0-1|amd64|install ok installed')):
             raise ValueError('obsolete legacy MCP conffile lacks its exact installed successor owner')
     # No old postrm exists in the reviewed release, including residual records.
     for hook in ('preinst', 'postrm'):
@@ -1101,7 +1101,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.2.0-9 [agent-ultra]=0.1.0-1 [agpc-manager]=3.2.0-1 [agent-apps]=0.2.0-3 [moted]=3.6.0-2 [medge]=3.2.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
+declare -A floor=([agent-sphere]=0.2.0-9 [agent-ultra]=0.1.0-1 [agpc-manager]=3.2.0-1 [agent-apps]=0.2.0-3 [moted]=3.6.0-2 [medge]=3.2.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -1159,11 +1159,11 @@ if $public_cx_migration; then
     printf '%s  %s\n' caa078bdd810580dc8b35380d2fe8abbda6ff6c4338f2a8c8dbbba3051d02af0 "$path" | sha256sum --check --status || fail 'CX artifact changed'
 fi
 if [[ -n ${removed[mote-bridge-mcp]:-} ]]; then
-    [[ ${installed[mote-mcpd]:-} == 3.0.0-3 ]] || fail 'MCP migration requires exact mote-mcpd 3.0.0-3'
+    [[ ${installed[mote-mcpd]:-} == 3.1.0-1 ]] || fail 'MCP migration requires exact mote-mcpd 3.1.0-1'
     path=${artifacts[mote-mcpd]}
     [[ ! -L $path && -f $path ]] || fail 'unsafe MCP artifact'
     [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected MCP artifact architecture'
-    printf '%s  %s\n' b4b1b640cb32f087af0a22b40f3edc85562bc9c87551ea60b7f6f7d80ca5fcf7 "$path" | sha256sum --check --status || fail 'MCP artifact changed'
+    printf '%s  %s\n' fae185fc735571c73adee70fb3095851541fce3a7b13b468c41cae32bec44a60 "$path" | sha256sum --check --status || fail 'MCP artifact changed'
 fi
 if [[ -n ${removed[sphere-manager]:-} ]]; then
     [[ ${installed[agpc-manager]:-} == 3.2.0-1 ]] || fail 'Manager migration requires exact agpc-manager 3.2.0-1'

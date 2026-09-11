@@ -13,7 +13,7 @@ import tarfile
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-NAMES = {'mlink', 'mote-proxy', 'model-router', 'cx-mesh', 'mote-mcpd', 'model-llm', 'moted', 'mote-transportd', 'mote-secd', 'agos', 'sphered'}
+NAMES = {'mlink', 'mote-proxy', 'model-router', 'cx-mesh', 'mote-mcpd', 'mote-mcp-ultra', 'cx-loop', 'model-llm', 'moted', 'mote-transportd', 'mote-secd', 'agos', 'sphered'}
 DOC = "usr/share/doc/agent-sphere/"
 TARGET = "usr/lib/systemd/system/agentsphere.target"
 SOURCES = {DOC + "README.md": "README.md", DOC + "copyright": "packaging/copyright", TARGET: "packaging/agentsphere.target"}
@@ -50,7 +50,7 @@ def check_control(meta):
         raise ValueError("unexpected control fields")
     deps = meta["Depends"].split(",")
     matches = [re.fullmatch(r"([a-z][a-z0-9-]*) \(>= ([0-9][0-9A-Za-z.+:~\-]*)\)", d.strip()) for d in deps]
-    if len(deps) != 12 or not all(matches) or {m[1] for m in matches} != NAMES | {"init-system-helpers"}:
+    if len(deps) != 14 or not all(matches) or {m[1] for m in matches} != NAMES | {"init-system-helpers"}:
         raise ValueError("dependency boundary violation")
     baseline = json.loads((ROOT / "component-baseline.json").read_text())
     if {**{p["name"]: p["version"] for p in baseline["packages"]}, **baseline["system_dependencies"]} != {m[1]: m[2] for m in matches}:

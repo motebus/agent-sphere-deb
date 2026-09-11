@@ -1,5 +1,5 @@
 Package: agent-sphere
-Version: 0.2.0-8
+Version: 0.2.0-9
 Architecture: all
 Section: metapackages
 Priority: optional

@@ -4,6 +4,7 @@ from pathlib import Path
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 
@@ -19,6 +20,16 @@ INPUTS = {
 def main():
     with tempfile.TemporaryDirectory(prefix='cx-retirement-') as directory:
         stage = Path(directory)
+        # Root namespace mappings cannot traverse runner-owned private checkout
+        # parents. Copy only reviewed fixture inputs into this owned stage.
+        source = stage/'source'
+        fixture = source/'tests/fixtures/cx-retirement'
+        fixture.mkdir(parents=True)
+        shutil.copyfile(ROOT/'agpc.sh', source/'agpc.sh')
+        shutil.copyfile(ROOT/'tests/fixtures/medge-archive-keyring.gpg', source/'tests/fixtures/medge-archive-keyring.gpg')
+        for name in ('run.sh','lifecycle.py','test_rename_apt_support.py','fixture-systemctl.py'):
+            shutil.copyfile(ROOT/'tests/fixtures/cx-retirement'/name, fixture/name)
+        (fixture/'fixture-systemctl.py').chmod(0o755)
         cache = os.environ.get('CX_RETIREMENT_DEB_DIR')
         for name, (tag, asset, digest) in INPUTS.items():
             path = stage/name
@@ -32,7 +43,7 @@ def main():
         assert hashlib.sha256((ROOT/'tests/fixtures/medge-archive-keyring.gpg').read_bytes()).hexdigest() == '756fc2632c307509b8e5ece665ced7f4d1a58636ac935aefc1e017f7dcfcbfbd'
         for scenario in ('both','disabled','masked'):
             output = stage/scenario; output.mkdir()
-            result = subprocess.run(['bash',str(ROOT/'tests/fixtures/cx-retirement/run.sh'),scenario,
+            result = subprocess.run(['bash',str(fixture/'run.sh'),scenario,
                 str(stage/'new.deb'),str(stage/'old-mesh.deb'),str(stage/'historical.deb'),str(stage/'old1.deb')],
                 env=dict(os.environ,TMPDIR='/tmp',FIXTURE_LOG_DIR=str(output)),capture_output=True,text=True,timeout=90)
             if result.returncode:

@@ -19,7 +19,8 @@ args+=(--ro-bind /usr/sbin/ldconfig /usr/sbin/ldconfig --ro-bind /usr/sbin/start
 status=0
 bwrap "${args[@]}" /bin/sh -eu -c 'touch /.cx-rename-fixture; python3 /source/tests/fixtures/cx-retirement/lifecycle.py "$1"' sh "$scenario" || status=$?
 if [ -n "${FIXTURE_LOG_DIR:-}" ]; then
- cp "$fixture_tmp/"*.json "$FIXTURE_LOG_DIR/"
- cp "$fixture_tmp/"*.log "$FIXTURE_LOG_DIR/"
+ shopt -s nullglob
+ evidence=("$fixture_tmp/"*.json "$fixture_tmp/"*.log)
+ if [ ${#evidence[@]} -gt 0 ]; then cp "${evidence[@]}" "$FIXTURE_LOG_DIR/"; fi
 fi
 exit "$status"

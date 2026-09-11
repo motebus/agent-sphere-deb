@@ -21,7 +21,7 @@ class CxPreflightTests(unittest.TestCase):
   self.fingerprint='changed';self.assertNotEqual(module.classify(),first)
  def test_all_reviewed_cx_predecessors_are_narrow(self):
   for name,version in module.REVIEWED:
-   if name=='codex-mesh' or version=='0.3.3-4':continue
+   if name=='codex-mesh' or version in ('0.3.3-1','0.3.3-4'):continue
    self.records={name:version+'\namd64\ninstall ok installed\n'}
    self.assertIn(name+'='+version+';',module.classify().replace(',codex-mesh=-','').replace(',cx-agent=-','')) if name=='cx-agent' else self.assertIn(name+'='+version,module.classify())
  def test_unknown_versions_partial_states_and_conffiles_are_rejected(self):
@@ -55,8 +55,10 @@ class QueryTests(unittest.TestCase):
    with mock.patch.object(module.subprocess,'run',return_value=subprocess.CompletedProcess([],0,record,'')):
     self.assertEqual(module.query('cx-node'),record)
 class Cx6ObsoleteTests(unittest.TestCase):
+ version="0.3.3-6"
+ installed_checks=module.CX6_OBSOLETE_INSTALLED
  def setUp(self):
-  self.record='0.3.3-6\namd64\ninstall ok installed\n '+' '.join(module.CX6_OBSOLETE_ROW)
+  self.record=self.version+'\namd64\ninstall ok installed\n '+' '.join(module.CX6_OBSOLETE_ROW)
   self.records={'cx-node':self.record};self.seen=[];self.fingerprint='stable'
   def checked(path,**kwargs):self.seen.append((path,kwargs));return [kwargs.get('digest',self.fingerprint),1,1,1,0o100644,0,0,1]
   for name,replacement in [('checked',checked),('query',lambda name:self.records.get(name)),('unit_policy',lambda:{})]:
@@ -70,13 +72,13 @@ class Cx6ObsoleteTests(unittest.TestCase):
   owner='cx-mesh' if args[-1]=='/usr/bin/cx' and 'deinstall' in self.records['cx-node'] else 'cx-node'
   return subprocess.CompletedProcess(args,0,owner+': '+args[-1]+'\n' if args[0]=='dpkg-query' else '', '')
  def test_exact_installed_obsolete_binds_list_drain_hooks_identity_and_receipt(self):
-  first=module.classify();self.assertIn('cx-node=0.3.3-6',first)
+  first=module.classify();self.assertIn('cx-node='+self.version,first)
   paths={p for p,_ in self.seen}
-  self.assertTrue(set(module.CX6_OBSOLETE_INSTALLED)<=paths)
+  self.assertTrue(set(self.installed_checks)<=paths)
   for path in ['/etc/cx-node/cx-node.toml','/etc/cx-node/cx-node-mchat.env','/var/lib/cx-node/state/runtime-migration.json','/var/lib/dpkg/info/cx-node.prerm','/var/lib/dpkg/info/cx-node.postrm']:self.assertIn(path,paths)
   self.fingerprint='changed';self.assertNotEqual(module.classify(),first)
  def test_only_exact_obsolete_record_and_old6_version_are_accepted(self):
-  for changed in [self.record.replace(' obsolete',''),self.record.replace('d137b03f7f14c9c1369d3e85a9062130','a'*32),self.record.replace('0.3.3-6','0.3.3-4'),self.record.replace('cx-node.toml','cx-node-mchat.env'),self.record+'\n '+ ' '.join(module.CX6_OBSOLETE_ROW),self.record+'\n /etc/foreign '+'a'*32+' obsolete']:
+  for changed in [self.record.replace(' obsolete',''),self.record.replace('d137b03f7f14c9c1369d3e85a9062130','a'*32),self.record.replace(self.version,'0.3.3-4'),self.record.replace('cx-node.toml','cx-node-mchat.env'),self.record+'\n '+ ' '.join(module.CX6_OBSOLETE_ROW),self.record+'\n /etc/foreign '+'a'*32+' obsolete']:
    with self.subTest(record=changed):
     self.records={'cx-node':changed}
     with self.assertRaisesRegex(ValueError,'conffile ownership'):module.classify()
@@ -107,6 +109,16 @@ class Cx6ObsoleteTests(unittest.TestCase):
  def test_no_conffile_old6_retains_existing_path(self):
   self.records={'cx-node':'0.3.3-6\namd64\ninstall ok installed\n'}
   with mock.patch.object(module,'cx6_obsolete_state',side_effect=AssertionError('unnecessary obsolete path')):self.assertIn('cx-node=0.3.3-6',module.classify())
+class Cx1ObsoleteTests(Cx6ObsoleteTests):
+ version="0.3.3-1"
+ installed_checks=module.CX1_OBSOLETE_INSTALLED
+ def test_no_conffile_old6_retains_existing_path(self):
+  self.records={'cx-node':self.version+'\namd64\ninstall ok installed\n'}
+  with self.assertRaisesRegex(ValueError,'obsolete conffile'):module.classify()
+ def test_exact_old1_cleanup_hooks_are_required(self):
+  module.classify()
+  self.assertIn(('/var/lib/dpkg/info/cx-node.prerm',{'digest':'6f8bd5bdd9cd01e2ac11e5eccd3806ec8cf0550702b219ad2fb34f96eb650cd4','mode':0o755}),self.seen)
+  self.assertIn(('/var/lib/dpkg/info/cx-node.postrm',{'digest':'70a40e034e0dbed5e29954a848a85541eb648907096da632d4943ce91fbd8cdc','mode':0o755}),self.seen)
 class Cx4Tests(unittest.TestCase):
  def setUp(self):
   self.files={};self.seen=[]

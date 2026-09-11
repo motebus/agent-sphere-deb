@@ -312,7 +312,7 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-7','agent-ultra=0.1.0-1','agpc-manager=3.2.0-1','agent-apps=0.2.0-3'])
+        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-8','agent-ultra=0.1.0-1','agpc-manager=3.2.0-1','agent-apps=0.2.0-3'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][-6:], ['install', *self.calls()[1][2:]])
         self.assertIn('--yes', self.calls()[-1])
@@ -469,6 +469,7 @@ print(state)
     def test_each_reviewed_rename_passes_both_checks(self):
         for old,new,oldversion,newversion in [('mote-sync','mote-vault-sync','1.1.0-2','1.1.0-3'),
                 ('mote-syncd','mote-vault-syncd','1.1.0-2','1.1.0-3'),
+                ('cx-node','cx-mesh','0.3.3-1','1.2.0-1'),
                 ('cx-node','cx-mesh','0.3.3-4','1.2.0-1'),
                 ('cx-node','cx-mesh','0.3.4-1~local20260909','1.2.0-1'),
                 ('model-node','model-llm','0.1.0-2','0.1.0-3')]:

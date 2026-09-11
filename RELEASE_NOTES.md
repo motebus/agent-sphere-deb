@@ -1,29 +1,16 @@
-Agent Sphere 0.2.0-5 makes the final installation transaction independent of the
-invoking SSH session. After the reviewed plan is confirmed, a systemd job runs
-APT and the final checks using root-private, hash-bound inputs. Durable logs and
-an atomic result retain the original exit status, including failures. The
-installer prints recovery paths and never launches the manager automatically.
+Agent Sphere 0.2.0-8 retires the reviewed cx-node 0.3.3-1 and codex-mesh
+1.0.0-1 packages directly into CX-Mesh 1.2.0-1. Their existing configuration,
+identities and work data remain preserved. An obsolete conffile record is
+retained through the native residual package lifecycle; no purge or manual
+ownership transfer is performed. The old1 cleanup hooks, removal list, drain
+executable and state boundaries are verified before and under the APT lock.
 
-The final check validates the installed OpenSSH configuration, preserves the
-existing socket/service activation choice, enables and starts that valid path,
-and requires an SSH banner from the existing local MoteD target 127.0.0.1:22.
-Service masks and invalid owner configuration cause a visible failure. Keys,
-authentication, listener settings and firewall rules remain unchanged; the check
-does not establish external Mote reachability or full runtime readiness.
+The installer also corrects the CX-Mesh and AGPC Manager migration artifact
+hashes to their current published versions. Genuine-archive native tests cover
+the combined retirement, retained configuration, repeated installation,
+disabled/masked services and rejection of altered hooks, ownership or state
+paths. Dependency and systemctl fixtures are isolated from live hosts.
 
-All native component versions and reviewed migration contracts remain unchanged,
-including genuine obsolete CX6 ownership and native residual/repeat handling.
-The durable job directory is created before migration snapshots, so its creation
-does not invalidate their protected parent metadata. APT and the existing
-protocol-v3 guard remain responsible for the exact package transaction.
-
-Validation distinguishes actual isolated Linux caller/worker behavior and
-OpenSSH configuration/banner checks from fixture systemd/package observations.
-Privileged CI must pass the real daemon/banner gate. No live host rollout,
-reboot acceptance, O/error-report delivery or Telegram event is included.
-Canonical downloads change only with the matching signed aggregate release.
-
-Native APT/DPKG and systemd remain the standard installation. The simulated and
-locked transaction now reject container runtime package additions, including
-transitive additions. Existing unrelated container software and data are preserved.
-This guard does not claim a live host rollout or change component dependencies.
+The uChat-on-Mesh package set, permanent machine names and independent Inboxes
+remain unchanged. Signed APT activation requires the matching aggregate and
+Ubuntu installation verification; publication alone does not upgrade a host.

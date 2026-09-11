@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.2.0-7` is the headless core of the four-package Agent Sphere
+`agent-sphere 0.2.0-8` is the headless core of the four-package Agent Sphere
 system. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -46,7 +46,7 @@ lifecycle. Each dependency owns its executable, service and configuration. `mote
 
 This is a composition prerelease. Each dependency remains a real native package
 with its own release and lifecycle. The complete installer requires the matching
-signed `agent-computer-v0.2.0-7` aggregate; publishing this Core source release
+signed `agent-computer-v0.2.0-8` aggregate; publishing this Core source release
 alone does not establish fleet or live runtime readiness. Existing published
 tags remain immutable.
 
@@ -68,8 +68,8 @@ identity, admission and live owner health determine usable capabilities.
 ## Complete installation and migration
 
 The canonical `agpc.sh` installer requests all four entries
-in one APT transaction: Core `0.2.0-7`, Ultra `0.1.0-1`, AGPC Manager
-`3.2.0-1` and Apps `0.2.0-2`. Apps requires `uchat >= 3.0.0-1`, bringing `uchatd` and its private Redis
+in one APT transaction: Core `0.2.0-8`, Ultra `0.1.0-1`, AGPC Manager
+`3.2.0-1` and Apps `0.2.0-3`. Apps requires `uchat >= 3.1.0-1`, bringing `uchatd` and its private Redis
 instance into fresh installs and existing AGPC upgrades. The chat daemon owns
 Inbox persistence and delivery; CX-Mesh retains execution authority.
 The installer acquires the pinned unmodified official Obsidian
@@ -161,7 +161,8 @@ installed `mote-mcpd` successor to own the normal path. No incidental old-record
 purge is performed. The runtime keeps legacy configuration/provider/helper
 paths while its managed Codex server entry uses the new package name.
 
-The CX-Mesh consolidation admits only reviewed `cx-node 0.3.3-4`/`0.3.3-6` or the
+The CX-Mesh consolidation retires the `cx-node` and `codex-mesh` Debian
+packages into `cx-mesh`. It admits reviewed `cx-node 0.3.3-1`/`0.3.3-4`/`0.3.3-6` or the
 `0.3.4-1~local20260909` preview, `cx-agent 0.3.4-2`/`0.3.4-3`, and
 `codex-mesh 1.0.0-1`/`1.0.0-2` predecessors. Exact cleanup hooks and transferred
 conffiles are checked, as are existing CX/Mesh identity and configuration
@@ -208,8 +209,22 @@ installed CX-Mesh successor, the reviewed reduced residual file list and
 cleanup hook, no removed payload hooks, and sole successor ownership of the
 drain executable. The residual package is never purged: doing so could remove
 the still-used owner configuration. The existing no-conffile old6 path is
-unchanged. This source change does not upgrade an earlier unsupported version
-or edit the DPKG database to create an accepted state.
+unchanged.
+
+The historical `cx-node 0.3.3-1` amd64 lineage with that exact obsolete TOML
+record can also migrate directly to `cx-mesh 1.2.0-1`. It has separately pinned
+old1 file-list, checksum, hook and drain-binary hashes. The same ownership,
+state-directory and migration-receipt checks apply before and under the APT
+lock. Both legacy runtimes are replaced in one transaction; no interim CX
+package, purge or manual DPKG edit is needed. Residual records remain solely to
+preserve owner configuration and are accepted on repeated runs. Runtime
+compatibility paths inside `cx-mesh` remain supported.
+
+The migration guard binds CX-Mesh 1.2.0-1 and AGPC Manager 3.2.0-1 to their
+actual published artifact hashes. Native tests use genuine historical and
+successor archives, real APT/DPKG, and the production classifier and locked
+transaction guard. Dependency stand-ins, a mapped service UID and a systemctl
+fixture keep those tests isolated; live service readiness is a separate check.
 
 Identity files are never edited, diverted or assigned through manual DPKG
 metadata changes. Their bytes, inode, ctime and existing access metadata must

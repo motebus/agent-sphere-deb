@@ -1,11 +1,11 @@
 Package: agent-sphere
-Version: 0.2.0-6
+Version: 0.2.0-7
 Architecture: all
 Section: metapackages
 Priority: optional
 Maintainer: MoteBus Engineering <engineering@ypcloud.com>
 Homepage: https://github.com/motebus/agent-sphere-deb
-Depends: sphered (>= 4.1.0-2), moted (>= 3.6.0-2), mote-proxy (>= 2.0.0-5), mote-transportd (>= 2.0.0-6), mlink (>= 2.1.0-1), mote-secd (>= 1.0.0-2), agos (>= 2.1.0-1), model-router (>= 0.1.0-1), model-llm (>= 0.1.0-3), mote-mcpd (>= 3.0.0-3), cx-mesh (>= 1.1.0-1), init-system-helpers (>= 1.54)
+Depends: sphered (>= 4.1.0-2), moted (>= 3.6.0-2), mote-proxy (>= 2.0.0-5), mote-transportd (>= 2.0.0-6), mlink (>= 2.1.0-1), mote-secd (>= 1.0.0-2), agos (>= 2.1.0-1), model-router (>= 0.1.0-1), model-llm (>= 0.1.0-3), mote-mcpd (>= 3.0.0-3), cx-mesh (>= 1.2.0-1), init-system-helpers (>= 1.54)
 Description: Agent Sphere headless core composition
  Composes Agent intelligence, model execution, CX Mesh, MCP, Mote
  transport, security and local I/O runtimes using native APT and DPKG.

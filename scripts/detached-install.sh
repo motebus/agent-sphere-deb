@@ -35,6 +35,7 @@ AGPC_STAGE
         printf '%s\n' '#!/bin/bash' 'set -euo pipefail' 'umask 077' 'export LC_ALL=C' 'export PATH=/usr/sbin:/usr/bin:/sbin:/bin'
         printf 'stage=%q\n' "$stage"
         printf 'guard=%q\n' "$worker_guard"
+        printf 'agpc_chat_user=%q\n' "${agpc_chat_user:-}"
         printf 'packages=('
         for argument in "${packages[@]}"; do
             [[ $argument != "$obsidian" ]] || argument=$worker_obsidian
@@ -50,7 +51,7 @@ finish() {
 import json, os, sys
 stage, code, phase=sys.argv[1:]
 body={'schema':'agpc.detached-install-result/v1','exit_code':int(code),'phase':phase,
-      'packages_verified':phase in ('ssh','complete'),'ssh_ready':phase=='complete',
+      'packages_verified':phase in ('uchat','ssh','complete'),'ssh_ready':phase=='complete',
       'mote_reachability':'not-tested','full_runtime_ready':False}
 path=stage+'/result.json.tmp'
 fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
@@ -86,6 +87,10 @@ for argument in sys.argv[1:]:
 assert len(records)==4
 print(json.dumps({'schema':'agpc.installed-entries/v1','packages':records,'full_runtime_ready':False},sort_keys=True))
 AGPC_PACKAGES
+phase=uchat
+if [[ -n $agpc_chat_user ]]; then
+    /usr/libexec/uchat/setup-default.py --user "$agpc_chat_user" > "$stage/uchat.json"
+fi
 phase=ssh
 if python3 "$stage/ssh-readiness.py" --ensure > "$stage/ssh.json"; then
     :

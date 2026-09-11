@@ -189,8 +189,8 @@ print(state)
         self.fake_mcp_classifier('absent')
         self.env['APT_TEST_MANAGER']='installed:sha256:fixture'
         artifact=self.root/'manager.deb';artifact.touch()
-        self.env['APT_TEST_PLAN']='Remv sphere-manager [3.1.0-1]\nInst agpc-manager (3.1.0-2 stable)'
-        self.env['APT_TEST_ACTIONS']=(f'agpc-manager - - none < 3.1.0-2 amd64 none {artifact}\n'
+        self.env['APT_TEST_PLAN']='Remv sphere-manager [3.1.0-1]\nInst agpc-manager (3.2.0-1 stable)'
+        self.env['APT_TEST_ACTIONS']=(f'agpc-manager - - none < 3.2.0-1 amd64 none {artifact}\n'
             'sphere-manager 3.1.0-1 amd64 none > - - none **REMOVE**\n')
         return artifact
 
@@ -227,10 +227,18 @@ print(state)
                          (after.st_ino,after.st_mtime_ns,after.st_ctime_ns))
         self.assertFalse(any('remove' in call or 'purge' in call for call in self.calls()))
 
+    def test_machine_account_is_explicit_and_checked_before_install(self):
+        for args in (('--user',), ('--yes','--user','agpc-nonexistent-fixture'), ('--yes','--user','root')):
+            with self.subTest(args=args):
+                result=self.run_installer(*args)
+                self.assertNotEqual(result.returncode,0)
+                self.assertEqual(self.calls(),[])
+                self.assertFalse(Path(str(self.log)+'.download').exists())
+
     def test_clean_manager_rename_requires_exact_artifact_in_same_transaction(self):
         self.manager_migration()
         result=self.run_installer('--yes');self.assertEqual(result.returncode,0,result.stderr)
-        self.assertIn('agpc-manager=3.1.0-2',self.calls()[-1])
+        self.assertIn('agpc-manager=3.2.0-1',self.calls()[-1])
         self.assertFalse(Path(str(self.log)+'.manager').exists())
         self.env['APT_TEST_MANAGER_BAD_DIGEST']='1'
         result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
@@ -253,7 +261,7 @@ print(state)
             'sphere-manager 3.1.0-1 amd64 none > - - none **REMOVE**\n',
             f'agpc-manager - - none < 3.1.0-3 amd64 none {artifact}\n',
             f'sphere-manager - - none < 3.1.0-1 amd64 none {artifact}\n',
-            f'agpc-manager - - none < 3.1.0-2 amd64 none {artifact}\nsphere-manager 3.1.0-2 amd64 none > - - none **REMOVE**\n',
+            f'agpc-manager - - none < 3.2.0-1 amd64 none {artifact}\nsphere-manager 3.2.0-1 amd64 none > - - none **REMOVE**\n',
         ]
         for action in actions:
             with self.subTest(action=action):
@@ -304,7 +312,7 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-6','agent-ultra=0.1.0-1','agpc-manager=3.1.0-2','agent-apps=0.2.0-2'])
+        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-7','agent-ultra=0.1.0-1','agpc-manager=3.2.0-1','agent-apps=0.2.0-3'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][-6:], ['install', *self.calls()[1][2:]])
         self.assertIn('--yes', self.calls()[-1])
@@ -351,8 +359,8 @@ print(state)
         self.fake_mcp_classifier('absent')
         self.env['APT_TEST_CX']='cx-node=0.3.3-6,cx-agent=-,codex-mesh=-;sha256:fixture'
         artifact=self.root/'cx-mesh.deb';artifact.touch()
-        self.env['APT_TEST_PLAN']='Remv cx-node [0.3.3-6]\nInst cx-mesh (1.1.0-1 stable)'
-        self.env['APT_TEST_ACTIONS']=(f'cx-mesh - - none < 1.1.0-1 amd64 none {artifact}\n'
+        self.env['APT_TEST_PLAN']='Remv cx-node [0.3.3-6]\nInst cx-mesh (1.2.0-1 stable)'
+        self.env['APT_TEST_ACTIONS']=(f'cx-mesh - - none < 1.2.0-1 amd64 none {artifact}\n'
             'cx-node 0.3.3-6 amd64 none > - - none **REMOVE**\n')
         result=self.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
@@ -461,8 +469,8 @@ print(state)
     def test_each_reviewed_rename_passes_both_checks(self):
         for old,new,oldversion,newversion in [('mote-sync','mote-vault-sync','1.1.0-2','1.1.0-3'),
                 ('mote-syncd','mote-vault-syncd','1.1.0-2','1.1.0-3'),
-                ('cx-node','cx-mesh','0.3.3-4','1.1.0-1'),
-                ('cx-node','cx-mesh','0.3.4-1~local20260909','1.1.0-1'),
+                ('cx-node','cx-mesh','0.3.3-4','1.2.0-1'),
+                ('cx-node','cx-mesh','0.3.4-1~local20260909','1.2.0-1'),
                 ('model-node','model-llm','0.1.0-2','0.1.0-3')]:
             with self.subTest(old=old):
                 self.fake_mcp_classifier('absent')

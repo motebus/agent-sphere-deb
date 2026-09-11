@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.2.0-6` is the headless core of the four-package Agent Sphere
+`agent-sphere 0.2.0-7` is the headless core of the four-package Agent Sphere
 system. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -35,7 +35,7 @@ Exiting the management UI must not stop the backend or Core.
 | model-router | 0.1.0-1 |
 | model-llm | 0.1.0-3 |
 | mote-mcpd | 3.0.0-3 |
-| cx-mesh | 1.1.0-1 |
+| cx-mesh | 1.2.0-1 |
 
 There are no `Recommends` or `Suggests`. This metapackage owns composition and
 owns documentation and `agentsphere.target`. Native Debian helpers enable
@@ -46,7 +46,7 @@ lifecycle. Each dependency owns its executable, service and configuration. `mote
 
 This is a composition prerelease. Each dependency remains a real native package
 with its own release and lifecycle. The complete installer requires the matching
-signed `agent-computer-v0.2.0-6` aggregate; publishing this Core source release
+signed `agent-computer-v0.2.0-7` aggregate; publishing this Core source release
 alone does not establish fleet or live runtime readiness. Existing published
 tags remain immutable.
 
@@ -68,8 +68,8 @@ identity, admission and live owner health determine usable capabilities.
 ## Complete installation and migration
 
 The canonical `agpc.sh` installer requests all four entries
-in one APT transaction: Core `0.2.0-6`, Ultra `0.1.0-1`, AGPC Manager
-`3.1.0-2` and Apps `0.2.0-2`. Apps requires `uchat >= 3.0.0-1`, bringing `uchatd` and its private Redis
+in one APT transaction: Core `0.2.0-7`, Ultra `0.1.0-1`, AGPC Manager
+`3.2.0-1` and Apps `0.2.0-2`. Apps requires `uchat >= 3.0.0-1`, bringing `uchatd` and its private Redis
 instance into fresh installs and existing AGPC upgrades. The chat daemon owns
 Inbox persistence and delivery; CX-Mesh retains execution authority.
 The installer acquires the pinned unmodified official Obsidian
@@ -103,8 +103,8 @@ resolution and external reachability are separate and remain unverified here.
 Successful installation prints the result and exits. Open
 `/usr/bin/agpc-manager` manually for deliberate owner setup; no UI is launched.
 Component services retain their native package lifecycle.
-The frontend package and command are `agpc-manager 3.1.0-2`, paired with
-`medge 3.1.0-2`; the predecessor is `sphere-manager`. The existing `sphere`
+The frontend package and command are `agpc-manager 3.2.0-1`, paired with
+`medge 3.2.0-1`; the predecessor is `sphere-manager`. The existing `sphere`
 shortcut points to the new command. A clean installed `sphere-manager 3.1.0-1`
 amd64 package is the only admitted predecessor: its native executable and
 package checksum record and DPKG removal file list must match the reviewed
@@ -251,3 +251,12 @@ These tests do not prove a reboot, real systemd boot activation or a live Mote
 connection. The signed aggregate publisher owns actual
 full-cohort dependency resolution, public artifact verification and native
 host acceptance before activation.
+
+
+The installer accepts `--user USER`, defaulting to the authenticated sudo login
+account. That account is carried into the detached installation job, where the
+native uChat helper configures its protected `@machine-name` after package
+verification. No account password is collected by the installer. Root-only
+installation without a selected login account reports the required manager
+setup. Open AGPC Manager explicitly and select **Mesh → uChat** to configure
+membership once and enable chat on that mesh.

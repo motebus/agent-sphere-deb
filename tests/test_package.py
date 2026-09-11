@@ -18,8 +18,8 @@ class PackageTests(unittest.TestCase):
         (ROOT / "build").mkdir(exist_ok=True)
 
     def test_core_excludes_manager_ui_and_local_ultra(self):
-        self.assertEqual(len(package.NAMES), 11)
-        self.assertTrue({"agos", "model-router", "model-llm", "cx-mesh", "mote-mcpd"}.issubset(package.NAMES))
+        self.assertEqual(len(package.NAMES), 13)
+        self.assertTrue({"agos", "model-router", "model-llm", "cx-mesh", "cx-loop", "mote-mcpd", "mote-mcp-ultra"}.issubset(package.NAMES))
         self.assertFalse({"medge", "sphere-manager", "agpc-manager", "agent-apps", "agent-ultra", "mdesk", "ss-webos", "obsidian"}.intersection(package.NAMES))
         self.assertNotIn("Recommends", package.control())
         self.assertNotIn("Suggests", package.control())

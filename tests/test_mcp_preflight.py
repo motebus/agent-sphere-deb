@@ -67,6 +67,12 @@ class McpPreflightTests(unittest.TestCase):
             return subprocess.CompletedProcess(args,0,value,'')
         with mock.patch.object(module.subprocess,'run',side_effect=query):
             self.assertTrue(module.classify().startswith('config-files:'))
+        def new_successor(args,**kwargs):
+            result=query(args,**kwargs)
+            result.stdout=result.stdout.replace('3.0.0-3|', '3.1.0-1|')
+            return result
+        with mock.patch.object(module.subprocess,'run',side_effect=new_successor):
+            self.assertTrue(module.classify().startswith('config-files:'))
         with self.assertRaisesRegex(ValueError,'successor owner'):module.classify()
 
     def test_added_cleanup_hook_is_rejected(self):

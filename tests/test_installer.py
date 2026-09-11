@@ -276,8 +276,8 @@ print(state)
     def test_reviewed_mcp_replacement_is_required_in_same_transaction(self):
         self.fake_mcp_classifier()
         artifact=self.root/'mote-mcpd.deb';artifact.touch()
-        self.env['APT_TEST_PLAN']='Remv mote-bridge-mcp [3.0.0-2]\nInst mote-mcpd (3.0.0-3 stable)'
-        self.env['APT_TEST_ACTIONS']=(f'mote-mcpd - - none < 3.0.0-3 amd64 none {artifact}\n'
+        self.env['APT_TEST_PLAN']='Remv mote-bridge-mcp [3.0.0-2]\nInst mote-mcpd (3.1.0-1 stable)'
+        self.env['APT_TEST_ACTIONS']=(f'mote-mcpd - - none < 3.1.0-1 amd64 none {artifact}\n'
             'mote-bridge-mcp 3.0.0-2 amd64 none > - - none **REMOVE**\n')
         result=self.run_installer('--yes');self.assertEqual(result.returncode,0,result.stderr)
         self.env['APT_TEST_ACTIONS']='mote-bridge-mcp 3.0.0-2 amd64 none > - - none **REMOVE**\n'

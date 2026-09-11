@@ -34,8 +34,10 @@ Exiting the management UI must not stop the backend or Core.
 | agos | 2.1.0-1 |
 | model-router | 0.1.0-1 |
 | model-llm | 0.1.0-3 |
-| mote-mcpd | 3.0.0-3 |
+| mote-mcpd | 3.1.0-1 |
+| mote-mcp-ultra | 0.1.0-1 |
 | cx-mesh | 1.2.0-1 |
+| cx-loop | 0.1.0-4 |
 
 There are no `Recommends` or `Suggests`. This metapackage owns composition and
 owns documentation and `agentsphere.target`. Native Debian helpers enable
@@ -281,3 +283,18 @@ retained shared directories plus the obsolete TOML, or only the obsolete TOML
 when other installed packages already own those directories. Both forms keep
 exact predecessor ownership and cleanup-hook checks. Native fixtures reproduce
 the historical 1.1 baseline and guarded 1.2 upgrade without DPKG database edits.
+
+## MCP clients and CX-Loop
+
+The Core includes the MCP gateway and its Ultra providers. Installing
+`mote-mcpd` registers `mote mcp serve` as `mote-mcpd` in
+`/etc/codex/config.toml`, shared by the Codex app, CLI and IDE on that host.
+The package preserves unrelated system settings and user/project overrides.
+Existing clients may need to restart the MCP server after an upgrade.
+Provider installation does not grant access to external services.
+
+`cx-loop` contains both the `cx-loop` CLI and `cx-loopd` daemon. Its dependency
+on `uchatd` brings the shared Inbox service into headless Core installations;
+Redis stays private to `uchatd`. CX-Loop is installed disabled with no task
+execution grants. Dispatch requires a separately admitted Mesh gateway; this
+release does not include that development gateway or start a Codex worker.

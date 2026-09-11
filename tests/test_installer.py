@@ -29,6 +29,20 @@ class InstallerTests(unittest.TestCase):
         text = INSTALLER.read_text()
         text = text.replace("agentsphere_platform_check || fail 'Platform preflight failed. No package or source change was started.'", ": # platform checked by isolated bootstrap tests")
         text = text.replace("agentsphere_apt_bootstrap || fail 'Signed APT bootstrap failed. Package installation was not started.'", ": # bootstrap checked by isolated bootstrap tests")
+        # Exercise original migration guards and confirmation here. The durable
+        # worker and SSH checks have separate process/namespace tests.
+        start = text.index('# BEGIN DETACHED INSTALL SUPPORT\n')
+        end = text.index('# END DETACHED INSTALL SUPPORT\n', start) + len('# END DETACHED INSTALL SUPPORT\n')
+        text = text[:start] + '''agentsphere_job_platform_check() { :; }
+agentsphere_run_detached() {
+    apt-get -o "DPkg::Pre-Install-Pkgs::=$guard" \\
+      -o "DPkg::Tools::Options::$guard::Version=3" \\
+      -o "DPkg::Tools::Options::$guard::InfoFD=0" \\
+      -o 'Dpkg::Options::=--force-confold' --yes install "${packages[@]}" </dev/null
+}
+''' + text[end:]
+        text = text.replace('job_stage=$(mktemp -d /var/lib/agpc-install.XXXXXXXX)',
+                            'job_stage=$(mktemp -d "$TMPDIR/agpc-install.XXXXXXXX")')
         self.bin = self.root / "bin"
         self.bin.mkdir()
         # Trap an accidental fixed-path or PATH-based UI launch inside the fixture.
@@ -113,9 +127,7 @@ if stage == 'install':
     if 'APT_TEST_FINAL_MANAGER' in os.environ:final_env['APT_TEST_MANAGER']=os.environ['APT_TEST_FINAL_MANAGER']
     result = subprocess.run([hook], input=protocol, text=True, env=final_env)
     if result.returncode == 0 and os.environ.get('APT_TEST_PROMPT'):
-        print('Fixture APT: Continue? [y/N]',flush=True)
-        assert os.isatty(0), 'APT must read the controlling terminal'
-        sys.exit(0 if sys.stdin.readline().strip() == 'y' else 1)
+        assert '--yes' in args and not os.isatty(0), 'the approved worker must not depend on an SSH terminal'
     sys.exit(result.returncode)
 """)
 
@@ -146,7 +158,7 @@ if stage == 'install':
                     except OSError:break
                     if not chunk:break
                     output+=chunk
-                    if b'Fixture APT: Continue?' in output and not sent:
+                    if b'Proceed with the displayed package plan and SSH readiness check?' in output and not sent:
                         os.write(master,(answer+'\n').encode());sent=True
                 if child.poll() is not None:break
             self.assertTrue(sent,output.decode())
@@ -181,6 +193,39 @@ print(state)
         self.env['APT_TEST_ACTIONS']=(f'agpc-manager - - none < 3.1.0-2 amd64 none {artifact}\n'
             'sphere-manager 3.1.0-1 amd64 none > - - none **REMOVE**\n')
         return artifact
+
+    def test_container_runtime_addition_is_refused_before_final_transaction(self):
+        for name in ('docker.io', 'docker-ce', 'podman', 'containerd.io', 'runc', 'moby-engine'):
+            with self.subTest(name=name):
+                if self.log.exists(): self.log.unlink()
+                self.env['APT_TEST_PLAN']=f'Inst {name} (1.0 stable)'
+                result=self.run_installer('--yes')
+                self.assertNotEqual(result.returncode,0)
+                self.assertIn('Refusing container runtime package',result.stderr)
+                self.assertEqual(len(self.calls()),2)
+
+    def test_container_runtime_late_install_or_configure_is_refused_under_lock(self):
+        for action in ('docker.io - - none < 1.0 amd64 none /cache/docker.deb',
+                       'containerd 1.0 amd64 none = 1.0 amd64 none **CONFIGURE**'):
+            with self.subTest(action=action):
+                self.env['APT_TEST_ACTIONS']=action+'\n'
+                result=self.run_installer('--yes')
+                self.assertNotEqual(result.returncode,0)
+                self.assertIn('outside native AGPC installation',result.stderr)
+
+    def test_unrelated_fixture_data_and_container_commands_are_not_touched(self):
+        owner_data=self.root/'existing-container-data';owner_data.write_bytes(b'owner data')
+        before=owner_data.stat()
+        for name in ('docker','podman'):
+            self.write_fake(name, "import os, pathlib, sys; pathlib.Path(os.environ['APT_TEST_LOG']+'.container').touch(); sys.exit(89)")
+        result=self.run_installer('--yes')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertFalse(Path(str(self.log)+'.container').exists())
+        self.assertEqual(owner_data.read_bytes(),b'owner data')
+        after=owner_data.stat()
+        self.assertEqual((before.st_ino,before.st_mtime_ns,before.st_ctime_ns),
+                         (after.st_ino,after.st_mtime_ns,after.st_ctime_ns))
+        self.assertFalse(any('remove' in call or 'purge' in call for call in self.calls()))
 
     def test_clean_manager_rename_requires_exact_artifact_in_same_transaction(self):
         self.manager_migration()
@@ -255,14 +300,14 @@ print(state)
         self.env['APT_TEST_ACTIONS']=''
         result=self.run_installer('--yes');self.assertEqual(result.returncode,0,result.stderr)
 
-    def test_default_keeps_apt_confirmation_and_installs_all_four(self):
+    def test_default_requires_confirmation_before_noninteractive_worker(self):
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-4','agent-ultra=0.1.0-1','agpc-manager=3.1.0-2','agent-apps=0.2.0-1'])
+        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-5','agent-ultra=0.1.0-1','agpc-manager=3.1.0-2','agent-apps=0.2.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][-6:], ['install', *self.calls()[1][2:]])
-        self.assertNotIn('--yes', self.calls()[-1])
+        self.assertIn('--yes', self.calls()[-1])
         self.assertIn('health are separate checks', result.stdout)
         self.assertFalse(list(self.root.glob('agent-sphere-apps.*')))
 
@@ -278,6 +323,7 @@ print(state)
         result=self.run_piped_installer('n')
         self.assertNotEqual(result.returncode,0,result.stdout)
         self.assertNotIn('--yes',self.calls()[-1])
+        self.assertEqual(len(self.calls()),2)
 
     def test_headless_stdin_requires_explicit_yes(self):
         # A fresh session cannot inherit a developer terminal accidentally.

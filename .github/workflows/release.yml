@@ -19,7 +19,7 @@ jobs:
       - name: Install namespace verification dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends bubblewrap gnupg
+          sudo apt-get install --yes --no-install-recommends bubblewrap gnupg openssh-server
       - name: Build and verify package and installer
         env:
           AGPC_BOOTSTRAP_NAMESPACE_SUDO: "1"

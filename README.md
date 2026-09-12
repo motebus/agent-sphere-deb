@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.2.0-9` is the headless core of the four-package Agent Sphere
+`agent-sphere 0.2.0-10` is the headless core of the four-package Agent Sphere
 system. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -48,7 +48,7 @@ lifecycle. Each dependency owns its executable, service and configuration. `mote
 
 This is a composition prerelease. Each dependency remains a real native package
 with its own release and lifecycle. The complete installer requires the matching
-signed `agent-computer-v0.2.0-9` aggregate; publishing this Core source release
+signed `agent-computer-v0.2.0-11` aggregate; publishing this Core source release
 alone does not establish fleet or live runtime readiness. Existing published
 tags remain immutable.
 
@@ -70,8 +70,8 @@ identity, admission and live owner health determine usable capabilities.
 ## Complete installation and migration
 
 The canonical `agpc.sh` installer requests all four entries
-in one APT transaction: Core `0.2.0-9`, Ultra `0.1.0-1`, AGPC Manager
-`3.2.0-1` and Apps `0.2.0-3`. Apps requires `uchat >= 3.1.0-1`, bringing `uchatd` and its private Redis
+in one APT transaction: Core `0.2.0-10`, Ultra `0.1.0-1`, AGPC Manager
+`3.3.0-1` and Apps `0.2.0-3`. Apps requires `uchat >= 3.1.0-1`, bringing `uchatd` and its private Redis
 instance into fresh installs and existing AGPC upgrades. The chat daemon owns
 Inbox persistence and delivery; CX-Mesh retains execution authority.
 The installer acquires the pinned unmodified official Obsidian
@@ -105,8 +105,8 @@ resolution and external reachability are separate and remain unverified here.
 Successful installation prints the result and exits. Open
 `/usr/bin/agpc-manager` manually for deliberate owner setup; no UI is launched.
 Component services retain their native package lifecycle.
-The frontend package and command are `agpc-manager 3.2.0-1`, paired with
-`medge 3.2.0-1`; the predecessor is `sphere-manager`. The existing `sphere`
+The frontend package and command are `agpc-manager 3.3.0-1`, paired with
+`medge 3.3.0-1`; the predecessor is `sphere-manager`. The existing `sphere`
 shortcut points to the new command. A clean installed `sphere-manager 3.1.0-1`
 amd64 package is the only admitted predecessor: its native executable and
 package checksum record and DPKG removal file list must match the reviewed
@@ -222,7 +222,7 @@ package, purge or manual DPKG edit is needed. Residual records remain solely to
 preserve owner configuration and are accepted on repeated runs. Runtime
 compatibility paths inside `cx-mesh` remain supported.
 
-The migration guard binds CX-Mesh 1.2.0-1 and AGPC Manager 3.2.0-1 to their
+The migration guard binds CX-Mesh 1.2.0-1 and AGPC Manager 3.3.0-1 to their
 actual published artifact hashes. Native tests use genuine historical and
 successor archives, real APT/DPKG, and the production classifier and locked
 transaction guard. Dependency stand-ins, a mapped service UID and a systemctl
@@ -274,9 +274,9 @@ The installer accepts `--user USER`, defaulting to the authenticated sudo login
 account. That account is carried into the detached installation job, where the
 native uChat helper configures its protected `@machine-name` after package
 verification. No account password is collected by the installer. Root-only
-installation without a selected login account reports the required manager
-setup. Open AGPC Manager explicitly and select **Mesh → uChat** to configure
-membership once and enable chat on that mesh.
+installation also supports open machine chat for local login accounts. Open
+`uchat`, type `@machine-name`, and chat without enrollment or pair keys.
+AGPC Manager leads with Chat; More settings contains optional managed team setup.
 
 The obsolete CX residual classifier accepts both native DPKG file-list forms:
 retained shared directories plus the obsolete TOML, or only the obsolete TOML

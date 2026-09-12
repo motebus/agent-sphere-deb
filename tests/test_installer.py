@@ -189,8 +189,8 @@ print(state)
         self.fake_mcp_classifier('absent')
         self.env['APT_TEST_MANAGER']='installed:sha256:fixture'
         artifact=self.root/'manager.deb';artifact.touch()
-        self.env['APT_TEST_PLAN']='Remv sphere-manager [3.1.0-1]\nInst agpc-manager (3.2.0-1 stable)'
-        self.env['APT_TEST_ACTIONS']=(f'agpc-manager - - none < 3.2.0-1 amd64 none {artifact}\n'
+        self.env['APT_TEST_PLAN']='Remv sphere-manager [3.1.0-1]\nInst agpc-manager (3.3.0-1 stable)'
+        self.env['APT_TEST_ACTIONS']=(f'agpc-manager - - none < 3.3.0-1 amd64 none {artifact}\n'
             'sphere-manager 3.1.0-1 amd64 none > - - none **REMOVE**\n')
         return artifact
 
@@ -238,7 +238,7 @@ print(state)
     def test_clean_manager_rename_requires_exact_artifact_in_same_transaction(self):
         self.manager_migration()
         result=self.run_installer('--yes');self.assertEqual(result.returncode,0,result.stderr)
-        self.assertIn('agpc-manager=3.2.0-1',self.calls()[-1])
+        self.assertIn('agpc-manager=3.3.0-1',self.calls()[-1])
         self.assertFalse(Path(str(self.log)+'.manager').exists())
         self.env['APT_TEST_MANAGER_BAD_DIGEST']='1'
         result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
@@ -261,7 +261,7 @@ print(state)
             'sphere-manager 3.1.0-1 amd64 none > - - none **REMOVE**\n',
             f'agpc-manager - - none < 3.1.0-3 amd64 none {artifact}\n',
             f'sphere-manager - - none < 3.1.0-1 amd64 none {artifact}\n',
-            f'agpc-manager - - none < 3.2.0-1 amd64 none {artifact}\nsphere-manager 3.2.0-1 amd64 none > - - none **REMOVE**\n',
+            f'agpc-manager - - none < 3.3.0-1 amd64 none {artifact}\nsphere-manager 3.3.0-1 amd64 none > - - none **REMOVE**\n',
         ]
         for action in actions:
             with self.subTest(action=action):
@@ -312,7 +312,7 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-9','agent-ultra=0.1.0-1','agpc-manager=3.2.0-1','agent-apps=0.2.0-3'])
+        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-10','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','agent-apps=0.2.0-3'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][-6:], ['install', *self.calls()[1][2:]])
         self.assertIn('--yes', self.calls()[-1])

@@ -58,21 +58,22 @@ def fixture_package(name,protected=False):
 
 def classifier():
     source=(ROOT/'agent-sphere-apps.sh').read_text()
-    start=source.index('classify_legacy_chatd() {')
-    result=source[start:source.index('\n}\n',start)+3]
-    start=source.index('classify_legacy_mcp() {')
-    result+=source[start:source.index('\n}\n',start)+3]
-    start=source.index('classify_legacy_cx() {')
-    result+=source[start:source.index('\n}\n',start)+3]
-    start=source.index('classify_legacy_manager() {')
-    return result+source[start:source.index('\nMANAGER_PREFLIGHT\n}',start)+len('\nMANAGER_PREFLIGHT\n}')+1]
+    result=''
+    for name, end in [('agentsphere_container_runtime_package','\n}\n'),
+                      ('classify_legacy_uchat','\n}\n'), ('classify_legacy_chatd','\n}\n'),
+                      ('classify_legacy_mcp','\nMCP_PREFLIGHT\n}\n'),
+                      ('classify_legacy_cx','\nCX_PREFLIGHT\n}\n'),
+                      ('classify_legacy_manager','\nMANAGER_PREFLIGHT\n}\n')]:
+        start=source.index(name+'() {')
+        result+=source[start:source.index(end,start)+len(end)]
+    return result
 
 
 def make_guard(expected):
     source=(ROOT/'agent-sphere-apps.sh').read_text()
     body=source.split("<<'GUARD'\n",1)[1].split('\nGUARD\n',1)[0]
     guard=Path('/tmp/guard');guard.write_text('#!/bin/bash\nset -euo pipefail\n'+classifier()+
-                            f"expected_legacy_state='{expected}'\nexpected_mcp_state=absent\nexpected_cx_state=absent\nexpected_manager_state=absent\n"+body+'\n')
+                            f"expected_legacy_state='{expected}'\nexpected_mcp_state=absent\nexpected_cx_state=absent\nexpected_manager_state=absent\nexpected_uchat_state=absent\n"+body+'\n')
     guard.chmod(0o700);return guard
 
 

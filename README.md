@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.2.0-10` is the headless core of the four-package Agent Sphere
+`agent-sphere 0.2.0-11` is the headless core of the four-package Agent Sphere
 system. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -70,10 +70,20 @@ identity, admission and live owner health determine usable capabilities.
 ## Complete installation and migration
 
 The canonical `agpc.sh` installer requests all four entries
-in one APT transaction: Core `0.2.0-10`, Ultra `0.1.0-1`, AGPC Manager
+in one APT transaction: Core `0.2.0-11`, Ultra `0.1.0-1`, AGPC Manager
 `3.3.0-1` and Apps `0.2.0-3`. Apps requires `uchat >= 3.1.0-1`, bringing `uchatd` and its private Redis
 instance into fresh installs and existing AGPC upgrades. The chat daemon owns
 Inbox persistence and delivery; CX-Mesh retains execution authority.
+AGPC `0.2.0-12` pins uChat `3.2.0-2` and uchatd `0.4.0-1`: SQLite owns durable
+messages and Redis is RAM-only, with no AOF, snapshots or swap. Before downloads
+and again under APT's lock, `agpc.sh` rejects legacy/incomplete uchatd packages
+or orphaned Inbox state. Existing installations must first complete the
+[uChat component migration and upgrade](https://github.com/motebus/download/releases/download/uchat-v3.2.0-2/UPGRADE.md).
+The aggregate installer does not copy, delete or migrate messages. Fresh
+installations and fully installed uchatd `0.4.0-1` or newer are admitted;
+state changes during preflight and old package versions in the transaction are
+refused. Core's other component dependencies are unchanged.
+
 The installer acquires the pinned unmodified official Obsidian
 amd64 DEB, verifies its SHA-256 and Debian metadata, and supplies it to the
 same transaction. Obsidian belongs to Ultra and is not rehosted by MoteBus.

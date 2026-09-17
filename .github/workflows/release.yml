@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the validated main package and installer through the release environment
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -38,3 +43,32 @@ jobs:
           name: agent-sphere-composition
           path: dist/
           if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-24.04
+    environment: release
+    concurrency:
+      group: agent-sphere-publication
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: agent-sphere-composition
+          path: dist
+      - name: Publish exact validated main artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^Version: //p' packaging/control)
+          python3 scripts/package.py verify "dist/agent-sphere_${version}_all.deb"
+          cmp agpc.sh dist/agpc.sh
+          cmp agent-sphere-apps.sh dist/agent-sphere-apps.sh
+          gh release create "v${version}" dist/* --target "$GITHUB_SHA" --title "Agent Sphere ${version}" --notes-file RELEASE_NOTES.md --latest=false

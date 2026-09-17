@@ -58,7 +58,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: agent-sphere-composition
           path: dist
@@ -71,4 +71,4 @@ jobs:
           python3 scripts/package.py verify "dist/agent-sphere_${version}_all.deb"
           cmp agpc.sh dist/agpc.sh
           cmp agent-sphere-apps.sh dist/agent-sphere-apps.sh
-          gh release create "v${version}" dist/* --target "$GITHUB_SHA" --title "Agent Sphere ${version}" --notes-file RELEASE_NOTES.md --latest=false
+          gh release create "v${version}" dist/* --target "$GITHUB_SHA" --title "Agent Sphere ${version}" --notes-file RELEASE_NOTES.md --prerelease --latest=false

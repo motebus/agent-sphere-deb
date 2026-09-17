@@ -163,14 +163,14 @@ class Cx4Tests(unittest.TestCase):
   self.assertNotIn('/usr/bin/cx',self.files)
 
 class ResidualDigestTests(unittest.TestCase):
- def test_only_two_native_lists_are_accepted(self):
+ def test_only_reviewed_native_lists_are_accepted(self):
   with tempfile.TemporaryDirectory() as directory:
    path=Path(directory)/'cx-node.list';path.touch(mode=0o600)
-   for content in ('/usr\n/usr/bin\n/usr/lib\n/usr/libexec\n/etc/cx-node/cx-node.toml\n','/etc/cx-node/cx-node.toml\n'):
+   for content in ('/usr\n/usr/bin\n/usr/lib\n/usr/libexec\n/etc/cx-node/cx-node.toml\n','/etc/cx-node/cx-node.toml\n','/lib\n/lib/systemd\n/lib/systemd/system\n/etc/cx-node/cx-node.toml\n'):
     path.write_text(content)
     result=module.checked(str(path),digest=module.CX6_RESIDUAL_LISTS,uid=os.getuid())
     self.assertEqual(result[0],hashlib.sha256(content.encode()).hexdigest())
-   for content in ('','/etc/cx-node/cx-node-mchat.env\n','/etc/cx-node/cx-node.toml\n/etc/foreign\n'):
+   for content in ('/lib\n/lib/systemd\n/lib/systemd/system\n/etc/cx-node/cx-node.toml\n/etc/foreign\n','','/etc/cx-node/cx-node-mchat.env\n','/etc/cx-node/cx-node.toml\n/etc/foreign\n'):
     path.write_text(content)
     with self.assertRaisesRegex(ValueError,'unreviewed CX removal hook'):
      module.checked(str(path),digest=module.CX6_RESIDUAL_LISTS,uid=os.getuid())

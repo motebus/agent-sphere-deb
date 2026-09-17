@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.2.0-13` is the headless core of the four-package Agent Sphere
+`agent-sphere 0.2.0-14` is the headless core of the four-package Agent Sphere
 system. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -70,7 +70,7 @@ identity, admission and live owner health determine usable capabilities.
 ## Complete installation and migration
 
 The canonical `agpc.sh` installer requests all four entries
-in one APT transaction: Core `0.2.0-13`, Ultra `0.1.0-1`, AGPC Manager
+in one APT transaction: Core `0.2.0-14`, Ultra `0.1.0-1`, AGPC Manager
 `3.3.0-1` and Apps `0.2.0-3`. Apps requires `uchat >= 3.1.0-1`, bringing `uchatd` and its private Redis
 instance into fresh installs and existing AGPC upgrades. The chat daemon owns
 Inbox persistence and delivery; CX-Mesh retains execution authority.
@@ -288,9 +288,11 @@ installation also supports open machine chat for local login accounts. Open
 `uchat`, type `@machine-name`, and chat without enrollment or pair keys.
 AGPC Manager leads with Chat; More settings contains optional managed team setup.
 
-The obsolete CX residual classifier accepts both native DPKG file-list forms:
+The obsolete CX residual classifier accepts the three reviewed native DPKG file-list forms:
 retained shared directories plus the obsolete TOML, or only the obsolete TOML
-when other installed packages already own those directories. Both forms keep
+when other installed packages already own those directories, and the Ubuntu
+24.04 form retaining only `/lib`, `/lib/systemd`, `/lib/systemd/system` and the
+obsolete TOML. All forms keep
 exact predecessor ownership and cleanup-hook checks. Native fixtures reproduce
 the historical 1.1 baseline and guarded 1.2 upgrade without DPKG database edits.
 

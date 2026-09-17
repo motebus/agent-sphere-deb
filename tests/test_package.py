@@ -17,6 +17,13 @@ class PackageTests(unittest.TestCase):
     def setUp(self):
         (ROOT / "build").mkdir(exist_ok=True)
 
+    def test_default_install_pin_matches_published_core_and_requires_new_cx(self):
+        version = package.control()["Version"]
+        installer = (ROOT / "agpc.sh").read_text()
+        self.assertIn("packages=(agent-sphere=" + version + " ", installer)
+        self.assertIn("[agent-sphere]=" + version + " ", installer)
+        self.assertIn("cx-mesh (>= 2.0.0-1)", package.control()["Depends"])
+
     def test_core_excludes_manager_ui_and_local_ultra(self):
         self.assertEqual(len(package.NAMES), 13)
         self.assertTrue({"agos", "model-router", "model-llm", "cx-mesh", "cx-loop", "mote-mcpd", "mote-mcp-ultra"}.issubset(package.NAMES))

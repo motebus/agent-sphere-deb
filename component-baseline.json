@@ -1,7 +1,7 @@
 {
   "schema": "agent-sphere-component-baseline/v3",
   "aggregate_repository": "https://github.com/motebus/download",
-  "aggregate_tag": "agent-computer-v0.2.0-12",
+  "aggregate_tag": "agent-computer-v0.2.0-13",
   "artifact_verification_owner": "signed Agent Computer aggregate publication",
   "packages": [
     {
@@ -61,7 +61,7 @@
     },
     {
       "name": "cx-mesh",
-      "version": "1.2.0-1",
+      "version": "2.0.0-1",
       "architecture": "amd64"
     },
     {

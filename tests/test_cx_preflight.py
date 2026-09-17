@@ -71,6 +71,20 @@ class Cx6ObsoleteTests(unittest.TestCase):
  def commands(self,args,**kwargs):
   owner='cx-mesh' if args[-1]=='/usr/bin/cx' and 'deinstall' in self.records['cx-node'] else 'cx-node'
   return subprocess.CompletedProcess(args,0,owner+': '+args[-1]+'\n' if args[0]=='dpkg-query' else '', '')
+ def test_renamed_successor_preserves_residual_ownership_and_checks_new_files(self):
+  self.records={'cx-node':self.record.replace('install ok installed','deinstall ok config-files'),'cx-mesh':'2.0.0-1\namd64\ninstall ok installed\n'}
+  def account(name):
+   if name=='cx-node':raise KeyError(name)
+   return types.SimpleNamespace(pw_uid=123,pw_dir='/var/lib/cx-mesh')
+  with mock.patch.object(module.pwd,'getpwnam',side_effect=account):
+   self.assertIn('cx-node=-',module.classify())
+   paths={p for p,_ in self.seen}
+   self.assertIn('/etc/cx-mesh/cx-mesh.toml',paths)
+   self.assertIn('/etc/cx-mesh/cx-mesh-mchat.env',paths)
+   self.assertNotIn('/etc/cx-node/cx-node.toml',paths)
+   with mock.patch.object(module.os.path,'lexists',side_effect=lambda p:p=='/usr/bin/cx-node'):
+    with self.assertRaisesRegex(ValueError,'retired CX path'):module.classify()
+  with self.assertRaisesRegex(ValueError,'retired CX account'):module.classify()
  def test_exact_installed_obsolete_binds_list_drain_hooks_identity_and_receipt(self):
   first=module.classify();self.assertIn('cx-node='+self.version,first)
   paths={p for p,_ in self.seen}

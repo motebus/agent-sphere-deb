@@ -43,7 +43,7 @@ def check_control(meta):
     expected = control()
     if meta != expected:
         raise ValueError("package metadata differs from reviewed control")
-    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.3.0-12":
+    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.3.0-13":
         raise ValueError("wrong package identity")
     if set(meta) != {"Package", "Version", "Architecture", "Section", "Priority",
                     "Maintainer", "Homepage", "Depends", "Description"}:

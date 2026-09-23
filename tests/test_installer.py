@@ -127,7 +127,7 @@ stage = 'update' if args == ['update'] else 'simulate' if '--simulate' in args e
 if os.environ.get('APT_TEST_FAIL') == stage:
     sys.exit(42)
 if stage == 'simulate':
-    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-18 stable)\\nInst contextd (0.1.0-14 stable)'))
+    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-19 stable)\\nInst contextd (0.1.0-15 stable)'))
 if stage == 'install':
     hook = next(a.split('=', 1)[1] for a in args if a.startswith('DPkg::Pre-Install-Pkgs::='))
     assert 'DPkg::Tools::Options::' + hook + '::Version=3' in args
@@ -218,7 +218,7 @@ print(state)
         result=self.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
         for args in self.calls()[1:]:
-            self.assertIn('contextd=0.1.0-14',args)
+            self.assertIn('contextd=0.1.0-15',args)
             self.assertIn('uchatd=0.5.0-1',args)
             self.assertFalse(any(arg.startswith(('agpc-apps=','agent-apps=')) for arg in args))
         self.assertIn('standard packages installed',result.stdout)
@@ -417,7 +417,7 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:7], ['--simulate','install','agent-sphere=0.3.0-18','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-14','uchatd=0.5.0-1'])
+        self.assertEqual(self.calls()[1][:7], ['--simulate','install','agent-sphere=0.3.0-19','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-15','uchatd=0.5.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][self.calls()[-1].index('install'):], ['install', *self.calls()[1][2:]])
         self.assertIn('--yes', self.calls()[-1])

@@ -127,7 +127,7 @@ stage = 'update' if args == ['update'] else 'simulate' if '--simulate' in args e
 if os.environ.get('APT_TEST_FAIL') == stage:
     sys.exit(42)
 if stage == 'simulate':
-    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-2 stable)\\nInst contextd (0.1.0-1 stable)'))
+    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-3 stable)\\nInst contextd (0.1.0-1 stable)'))
 if stage == 'install':
     hook = next(a.split('=', 1)[1] for a in args if a.startswith('DPkg::Pre-Install-Pkgs::='))
     assert 'DPkg::Tools::Options::' + hook + '::Version=3' in args
@@ -226,12 +226,12 @@ print(state)
     def test_standard_refuses_app_composition_in_simulation_and_locked_transaction(self):
         for name in ('agent-apps','agpc-apps'):
             with self.subTest(name=name):
-                self.env['APT_TEST_PLAN']=f'Inst {name} (0.3.0-2 stable)'
+                self.env['APT_TEST_PLAN']=f'Inst {name} (0.3.0-3 stable)'
                 result=self.run_installer('--yes')
                 self.assertNotEqual(result.returncode,0)
                 self.assertIn('outside the standard AGPC profile',result.stderr)
                 self.env.pop('APT_TEST_PLAN')
-                self.env['APT_TEST_ACTIONS']=f'{name} - - none < 0.3.0-2 all none /cache/apps.deb\n'
+                self.env['APT_TEST_ACTIONS']=f'{name} - - none < 0.3.0-3 all none /cache/apps.deb\n'
                 result=self.run_installer('--yes')
                 self.assertNotEqual(result.returncode,0)
                 self.assertIn('outside the standard AGPC profile',result.stderr)
@@ -241,12 +241,12 @@ print(state)
         self.full_profile()
         result=self.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
-        self.assertIn('agpc-apps=0.3.0-2',self.calls()[-1])
-        self.assertNotIn('agent-apps=0.3.0-2',self.calls()[-1])
+        self.assertIn('agpc-apps=0.3.0-1',self.calls()[-1])
+        self.assertNotIn('agent-apps=0.3.0-1',self.calls()[-1])
         self.env['APT_TEST_OLD_APPS']='install ok installed'
         result=self.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
-        self.assertIn('agent-apps=0.3.0-2',self.calls()[-1])
+        self.assertIn('agent-apps=0.3.0-1',self.calls()[-1])
         self.assertNotIn('agent-apps-',self.calls()[-1])
         self.assertIn('full packages installed',result.stdout)
 
@@ -269,7 +269,7 @@ print(state)
                 self.assertEqual(len(self.calls()),2)
 
     def test_legacy_uchat_stops_before_download_or_apt(self):
-        for value in ('install ok installed\n0.3.0-2', 'deinstall ok config-files\n0.3.0-2',
+        for value in ('install ok installed\n0.3.0-3', 'deinstall ok config-files\n0.3.0-3',
                       'install ok installed\n0.4.0-2', 'install ok unpacked\n0.5.0-1', 'query-error', 'malformed'):
             with self.subTest(value=value):
                 self.env['APT_TEST_UCHAT']=value
@@ -292,7 +292,7 @@ print(state)
         self.env['APT_TEST_UCHAT']='install ok installed\n0.5.0-1'
         result=self.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
-        self.env['APT_TEST_FINAL_UCHAT']='install ok installed\n0.3.0-2'
+        self.env['APT_TEST_FINAL_UCHAT']='install ok installed\n0.3.0-3'
         result=self.run_installer('--yes')
         self.assertNotEqual(result.returncode,0)
         self.assertIn('uChat migration is required at transaction time',result.stderr)
@@ -302,7 +302,7 @@ print(state)
         self.assertIn('uChat state changed after preflight',result.stderr)
 
     def test_old_uchat_packages_refused_under_apt_lock(self):
-        for name,version in [('uchat','3.2.0-1'),('uchatd','0.3.0-2')]:
+        for name,version in [('uchat','3.2.0-1'),('uchatd','0.3.0-3')]:
             with self.subTest(name=name):
                 self.env['APT_TEST_ACTIONS']=f'{name} - - none < {version} amd64 none /cache/fixture.deb\n'
                 result=self.run_installer('--yes')
@@ -417,7 +417,7 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:7], ['--simulate','install','agent-sphere=0.3.0-2','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-1','uchatd=0.5.0-1'])
+        self.assertEqual(self.calls()[1][:7], ['--simulate','install','agent-sphere=0.3.0-3','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-1','uchatd=0.5.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][self.calls()[-1].index('install'):], ['install', *self.calls()[1][2:]])
         self.assertIn('--yes', self.calls()[-1])

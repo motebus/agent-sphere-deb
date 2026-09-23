@@ -77,7 +77,7 @@ sys.exit(subprocess.call([{self.stat!r}, *sys.argv[1:-1], {str(self.target)!r}])
         self.run_dpkg('--unpack',self.package('2.0.0-4',protected=True))
         self.rejected_before_download()
 
-    def test_actual_obsolete_protected_record_selects_retention_without_touching_identity(self):
+    def test_actual_obsolete_protected_record_is_removed_without_touching_identity(self):
         self.run_dpkg('--install',self.package('1.1.0-1',protected=True))
         self.run_dpkg('--install',self.package('2.0.0-4'))
         records=subprocess.check_output([self.query,'--admindir='+str(self.root/'var/lib/dpkg'),
@@ -86,7 +86,7 @@ sys.exit(subprocess.call([{self.stat!r}, *sys.argv[1:-1], {str(self.target)!r}])
         before=(self.target.read_bytes(),self.target.stat())
         result=self.fixture.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
-        self.assertIn('mote-chatd=2.0.0-6',self.fixture.calls()[-1])
+        self.assertIn('mote-chatd-',self.fixture.calls()[-1])
         after=(self.target.read_bytes(),self.target.stat())
         self.assertEqual(before[0],after[0])
         for field in ('st_ino','st_mtime_ns','st_ctime_ns','st_mode','st_uid','st_gid'):

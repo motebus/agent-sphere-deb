@@ -1200,7 +1200,8 @@ while IFS= read -r line; do
         if [[ $name == mote-chatd ]]; then
             [[ $new == - && -z ${removed[$name]:-} &&
                (($legacy_state == ordinary:installed && $old == 2.0.0-4) ||
-                ($legacy_state == retention:* && $old == 2.0.0-6)) ]] || fail 'removal of retired mote-chatd'
+               ($legacy_state == retention:* &&
+                ($old == 2.0.0-4 || $old == 2.0.0-6))) ]] || fail 'removal of retired mote-chatd'
         else
             [[ -n ${replacement[$name]:-} && $old == "${reviewed_old[$name]}" && $new == - && -z ${removed[$name]:-} ]] || fail "removal of $name"
         fi

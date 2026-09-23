@@ -588,12 +588,12 @@ print(state)
                 result=self.run_installer('--yes')
                 self.assertEqual(result.returncode, 0,result.stderr)
 
-    def test_legacy_chatd_record_is_upgraded_without_removal(self):
+    def test_legacy_chatd_record_is_retired_and_removed(self):
         self.env['APT_TEST_CHATD']='installed'
         result=self.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
-        self.assertIn('mote-chatd=2.0.0-6',self.calls()[1])
-        self.assertIn('mote-chatd=2.0.0-6',self.calls()[-1])
+        self.assertIn('mote-chatd-',self.calls()[1])
+        self.assertIn('mote-chatd-',self.calls()[-1])
 
     def test_unsupported_legacy_records_stop_before_download_or_apt(self):
         locked=' /etc/mote/mote-chatd/mote-chatd-mchat.env ' + 'a'*32 + ' obsolete'

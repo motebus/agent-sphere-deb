@@ -23,7 +23,7 @@ class CoreDependencyTests(unittest.TestCase):
             config=root/'apt.conf';config.write_text(f'Dir::Etc "{etc}";\n');status=root/'status'
             def fields(name,version):
                 data={'Package':name,'Version':version,'Architecture':'all','Maintainer':'Fixture <fixture@example.invalid>','Description':'Offline metadata fixture'}
-                if name=='agent-sphere':data['Depends']=', '.join(f'{n} (>= {v})' for n,v in DEPS.items()) if version=='0.3.0-21' else 'medge (>= 3.0.0-3)'
+                if name=='agent-sphere':data['Depends']=', '.join(f'{n} (>= {v})' for n,v in DEPS.items()) if version=='0.3.0-22' else 'medge (>= 3.0.0-3)'
                 if name=='mote-mcp-ultra':data['Depends']='mote-mcpd (>= 3.1.0-1), mote-mcpd (<< 3.2.0)'
                 if name=='cx-loop':data['Depends']='uchatd (>= 0.2.0-1)'
                 if name=='uchatd':data['Depends']='redis-server (>= 5:6.2), mote-transportd (>= 2.0.0-6)'
@@ -33,7 +33,7 @@ class CoreDependencyTests(unittest.TestCase):
             if old_cx:existing.append(('cx-mesh','1.2.0-1'))
             status.write_text('\n\n'.join('\n'.join(f'{k}: {v}' for k,v in dict(fields(n,v),Status='install ok installed').items()) for n,v in existing)+('\n' if existing else ''))
             before=status.read_bytes();index=[]
-            for n,v in [*{**DEPS,**TRANSITIVE}.items(),('agent-sphere','0.3.0-21'),('agpc-manager','3.3.0-1'),('medge','3.3.0-1'),*existing]:
+            for n,v in [*{**DEPS,**TRANSITIVE}.items(),('agent-sphere','0.3.0-22'),('agpc-manager','3.3.0-1'),('medge','3.3.0-1'),*existing]:
                 if n==missing:continue
                 data=fields(n,v);stage=root/(n+v)/'DEBIAN';stage.mkdir(parents=True)
                 (stage/'control').write_text('\n'.join(f'{k}: {v}' for k,v in data.items())+'\n')
@@ -44,7 +44,7 @@ class CoreDependencyTests(unittest.TestCase):
             command=['apt-get','-o',f'Dir::Etc={etc}','-o',f'Dir::State={root}/state','-o',f'Dir::State::status={status}','-o',f'Dir::Cache={root}/cache','-o',f'Dir::Log={root}/log','-o','APT::Architecture=amd64','-o','Acquire::Languages=none','-o','Dir::Cache::pkgcache=','-o','Dir::Cache::srcpkgcache=','-o','APT::Sandbox::User='+pwd.getpwuid(os.getuid()).pw_name]
             env=dict(os.environ,LC_ALL='C',APT_CONFIG=str(config))
             update=subprocess.run([*command,'update'],capture_output=True,text=True,env=env);self.assertEqual(update.returncode,0,update.stderr)
-            result=subprocess.run([*command,'--simulate','--no-remove','install','agent-sphere=0.3.0-21'],capture_output=True,text=True,env=env)
+            result=subprocess.run([*command,'--simulate','--no-remove','install','agent-sphere=0.3.0-22'],capture_output=True,text=True,env=env)
             self.assertEqual(status.read_bytes(),before)
             return result
 

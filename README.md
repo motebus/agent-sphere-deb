@@ -34,7 +34,7 @@ Exiting the management UI must not stop the backend or Core.
 | mote-secd | 1.0.0-2 |
 | agos | 2.1.0-1 |
 | model-router | 0.1.0-1 |
-| model-llm | 0.1.0-4 |
+| model-llm | 0.1.0-3 |
 | mote-mcpd | 3.1.0-1 |
 | mote-mcp-ultra | 0.1.0-1 |
 | cx-mesh | 2.0.0-1 |

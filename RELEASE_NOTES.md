@@ -1,4 +1,4 @@
-Agent Sphere 0.3.0-10 carries native standard and full installer profiles.
+Agent Sphere 0.3.0-11 carries native standard and full installer profiles.
 
 - agpc.sh requires the native contextd and durable Redis-backed uchatd in Core.
 - agpc-all.sh adds agpc-apps 0.3.0-1, upgrading an installed agent-apps name through its exact dependency transition.

@@ -178,14 +178,11 @@ the reviewed bootstrap or private transaction stage and install no Python daemon
 or alternate package manager. They remain installer support; a future replacement
 requires its own review and does not change the component runtime language policy.
 
-Ordinary `mote-chatd 2.0.0-4` owns only its normal env conffile and can be
-replaced by the exact transport `2.0.0-6` artifact after its removal hooks are
-verified. A protected old locked conffile instead retains the exact
-`mote-chatd 2.0.0-6` documentation guard. That record must not be removed or
-purged. Fresh hosts require no retention package. The explicit `mote-chatd-`
-selector prevents APT from selecting the retention candidate on the ordinary
-path. Residual records and repeated installation are supported within the
-exact reviewed ownership contract.
+`mote-chatd` is retired. The installer removes a reviewed old runtime or former
+documentation record with the explicit `mote-chatd-` selector while installing
+native `mote-transportd`. Fresh hosts receive no `mote-chatd` package or
+virtual dependency, and repeated installation remains idempotent after the
+retired record is gone.
 
 The MCP rename supports exact `mote-bridge-mcp 3.0.0-2` metadata and its reviewed
 removal hook/helper. The old hook deletes its managed system Codex table, so

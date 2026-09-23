@@ -1,4 +1,5 @@
-Agent Sphere 0.3.0-16 carries native standard and full installer profiles.
+Agent Sphere 0.3.0-17 carries native standard and full installer profiles with
+contextd 0.1.0-13's fixed native Debian postinst allocation.
 
 - agpc.sh requires the native contextd and durable Redis-backed uchatd in Core.
 - agpc-all.sh adds agpc-apps 0.3.0-1, upgrading an installed agent-apps name through its exact dependency transition.

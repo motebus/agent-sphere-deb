@@ -1,7 +1,7 @@
 {
   "schema": "agent-sphere-component-baseline/v3",
   "aggregate_repository": "https://github.com/motebus/download",
-  "aggregate_tag": "agent-computer-v0.3.0-8",
+  "aggregate_tag": "agent-computer-v0.3.0-9",
   "artifact_verification_owner": "signed Agent Computer aggregate publication",
   "packages": [
     {
@@ -46,7 +46,7 @@
     },
     {
       "name": "model-llm",
-      "version": "0.1.0-3",
+      "version": "0.1.0-4",
       "architecture": "amd64"
     },
     {
@@ -71,7 +71,7 @@
     },
     {
       "name": "contextd",
-      "version": "0.1.0-3",
+      "version": "0.1.0-4",
       "architecture": "amd64"
     },
     {

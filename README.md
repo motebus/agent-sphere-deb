@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.3.0-22` is the headless core of the native AGPC standard/full
+`agent-sphere 0.3.0-23` is the headless core of the native AGPC standard/full
 installation profiles. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -39,7 +39,7 @@ Exiting the management UI must not stop the backend or Core.
 | mote-mcp-ultra | 0.1.0-1 |
 | cx-mesh | 2.0.0-1 |
 | cx-loop | 0.1.0-5 |
-| contextd | 0.1.0-19 |
+| contextd | 0.1.0-20 |
 | uchatd | 0.5.0-1 |
 
 There are no `Recommends` or `Suggests`. This metapackage owns composition and
@@ -79,7 +79,7 @@ signed APT and detached-worker checks:
 
 | Installer | Requested packages |
 | --- | --- |
-| `agpc.sh` | Core `0.3.0-22`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-19`, uchatd `0.5.0-1` |
+| `agpc.sh` | Core `0.3.0-23`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-20`, uchatd `0.5.0-1` |
 | `agpc-all.sh` | Standard plus `agpc-apps 0.3.0-1` |
 
 `contextd` runs inside AGPC. CoD Server (`codd`) stays in the cloud and is not

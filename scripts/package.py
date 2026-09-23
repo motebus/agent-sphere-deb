@@ -13,7 +13,7 @@ import tarfile
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-NAMES = {'mlink', 'mote-proxy', 'model-router', 'cx-mesh', 'mote-mcpd', 'mote-mcp-ultra', 'cx-loop', 'model-llm', 'moted', 'mote-transportd', 'mote-secd', 'agos', 'sphered'}
+NAMES = {'mlink', 'mote-proxy', 'model-router', 'cx-mesh', 'mote-mcpd', 'mote-mcp-ultra', 'cx-loop', 'model-llm', 'moted', 'mote-transportd', 'mote-secd', 'agos', 'sphered', 'contextd', 'uchatd'}
 DOC = "usr/share/doc/agent-sphere/"
 TARGET = "usr/lib/systemd/system/agentsphere.target"
 SOURCES = {DOC + "README.md": "README.md", DOC + "copyright": "packaging/copyright", TARGET: "packaging/agentsphere.target"}
@@ -43,14 +43,14 @@ def check_control(meta):
     expected = control()
     if meta != expected:
         raise ValueError("package metadata differs from reviewed control")
-    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.2.0-15":
+    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.3.0-1":
         raise ValueError("wrong package identity")
     if set(meta) != {"Package", "Version", "Architecture", "Section", "Priority",
                     "Maintainer", "Homepage", "Depends", "Description"}:
         raise ValueError("unexpected control fields")
     deps = meta["Depends"].split(",")
     matches = [re.fullmatch(r"([a-z][a-z0-9-]*) \(>= ([0-9][0-9A-Za-z.+:~\-]*)\)", d.strip()) for d in deps]
-    if len(deps) != 14 or not all(matches) or {m[1] for m in matches} != NAMES | {"init-system-helpers"}:
+    if len(deps) != 16 or not all(matches) or {m[1] for m in matches} != NAMES | {"init-system-helpers"}:
         raise ValueError("dependency boundary violation")
     baseline = json.loads((ROOT / "component-baseline.json").read_text())
     if {**{p["name"]: p["version"] for p in baseline["packages"]}, **baseline["system_dependencies"]} != {m[1]: m[2] for m in matches}:
@@ -147,14 +147,15 @@ def manifest(out):
         raise ValueError("release blocked: exact committed-main migration artifacts are required")
     path = out / ("agent-sphere_" + control()["Version"] + "_all.deb")
     verify(path)
-    if (ROOT / "agpc.sh").read_bytes() != (ROOT / "agent-sphere-apps.sh").read_bytes():
-        raise ValueError("compatibility installer differs from canonical agpc.sh")
+    subprocess.run(["python3", str(ROOT / "scripts/embed-installer-support.py")], check=True)
     installer = out / "agpc.sh"
     shutil.copyfile(ROOT / installer.name, installer)
     installer.chmod(0o755)
+    full = out / "agpc-full.sh"
     alias = out / "agent-sphere-apps.sh"
-    shutil.copyfile(installer, alias)
-    alias.chmod(0o755)
+    for script in (full, alias):
+        shutil.copyfile(ROOT / script.name, script)
+        script.chmod(0o755)
     if subprocess.check_output(["git", "-C", str(ROOT), "status", "--porcelain"], text=True).strip():
         raise ValueError("manifest requires clean committed source")
     commit = subprocess.check_output(["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True).strip()
@@ -163,14 +164,15 @@ def manifest(out):
             "status": "composition-prerelease", "sphere_ready_verified": False,
             "source": "https://github.com/motebus/agent-sphere-deb", "source_commit": commit,
             "source_ref": os.environ.get("GITHUB_REF", "local"), "asset": path.name, "sha256": digest(path),
-            "assets": [{"name": p.name, "sha256": digest(p)} for p in [path, installer, alias]],
+            "assets": [{"name": p.name, "sha256": digest(p)} for p in [path, installer, full, alias]],
+            "installer_profiles": {"agpc.sh": "standard", "agpc-full.sh": "full", "agent-sphere-apps.sh": "full-compatibility"},
             "build_run": os.environ.get("GITHUB_SERVER_URL", "https://github.com") + "/" +
             os.environ.get("GITHUB_REPOSITORY", "motebus/agent-sphere-deb") + "/actions/runs/" +
             os.environ.get("GITHUB_RUN_ID", "local"),
             "component_baseline": json.loads((ROOT / "component-baseline.json").read_text())}
     record = out / "release-manifest.json"
     record.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
-    (out / "SHA256SUMS").write_text("".join(digest(p) + "  " + p.name + "\n" for p in [path, installer, alias, record]))
+    (out / "SHA256SUMS").write_text("".join(digest(p) + "  " + p.name + "\n" for p in [path, installer, full, alias, record]))
 
 
 if __name__ == "__main__":

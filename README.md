@@ -1,18 +1,19 @@
 # Agent Sphere
 
-`agent-sphere 0.2.0-15` is the headless core of the four-package Agent Sphere
-system. It composes Agent intelligence, model execution, CX-Mesh and Mote
+`agent-sphere 0.3.0-1` is the headless core of the native AGPC standard/full
+installation profiles. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
 The installer refuses a container runtime added to its simulated or locked APT
 transaction. Existing unrelated container software and data are left alone;
-there is no removal step or alternate installation profile.
+there is no container installation profile or removal step for unrelated software.
 
 ```text
 agent-sphere    Core: AGOS, CX-Mesh, model execution, Mote and local I/O
 agent-ultra     Redixs, local Comm/Telegram, Obsidian and vault sync
 agpc-manager Dedicated native TUI/CLI backed by MEdge management
-agent-apps     Jujue, iAgent, SS-WebOS, MDesk and UChat
+contextd      Native task context sandbox (required; implementation/release pending)
+agpc-apps     Jujue, iAgent, SS-WebOS, MDesk and UChat (full profile)
 ```
 
 Core contains no TUI and does not require the manager or desktop applications.
@@ -36,8 +37,10 @@ Exiting the management UI must not stop the backend or Core.
 | model-llm | 0.1.0-3 |
 | mote-mcpd | 3.1.0-1 |
 | mote-mcp-ultra | 0.1.0-1 |
-| cx-mesh | 1.2.0-1 |
+| cx-mesh | 2.0.0-1 |
 | cx-loop | 0.1.0-4 |
+| contextd | 0.1.0-1 (target floor; artifact not yet available) |
+| uchatd | 0.5.0-1 |
 
 There are no `Recommends` or `Suggests`. This metapackage owns composition and
 owns documentation and `agentsphere.target`. Native Debian helpers enable
@@ -48,15 +51,19 @@ lifecycle. Each dependency owns its executable, service and configuration. `mote
 
 This is a composition prerelease. Each dependency remains a real native package
 with its own release and lifecycle. The complete installer requires the matching
-signed `agent-computer-v0.2.0-12` aggregate; publishing this Core source release
+future signed `agent-computer-v0.3.0-1` aggregate; publishing this Core source release
 alone does not establish fleet or live runtime readiness. Existing published
-tags remain immutable.
+tags remain immutable. The real `contextd` native runtime/package is still missing;
+this source does not create an empty substitute. Public installation/release
+acceptance stays blocked until its reviewed artifact and the matching signed
+cohort exist. The `0.1.0-1` floor is a proposed implementation target.
 
 ## Headless startup
 
 `agentsphere.target` wants `sphered.service`, `moted.service`,
 `mote-proxy.service`, `mote-transportd.service`, `mlink.service`,
-`mote-secd.service`, `agosd.service` and `model-router.service`. It is ordered
+`mote-secd.service`, `agosd.service`, `model-router.service`, `contextd.service`
+and `uchatd.service`. It is ordered
 after `basic.target` and enabled for `multi-user.target`. Starting the target
 requests these required Core units even if they were previously only disabled;
 explicit service masks remain authoritative. It does not add `PartOf` or
@@ -69,20 +76,36 @@ identity, admission and live owner health determine usable capabilities.
 
 ## Complete installation and migration
 
-The canonical `agpc.sh` installer requests all four entries
-in one APT transaction: Core `0.2.0-15`, Ultra `0.1.0-1`, AGPC Manager
-`3.3.0-1` and Apps `0.2.0-4`. Apps requires `uchat >= 3.2.0-3`, bringing `uchatd` and its private Redis
-instance into fresh installs and existing AGPC upgrades. The chat daemon owns
-Inbox persistence and delivery; CX-Mesh retains execution authority.
-AGPC `0.2.0-12` pins uChat `3.2.0-2` and uchatd `0.4.0-1`: SQLite owns durable
-messages and Redis is RAM-only, with no AOF, snapshots or swap. Before downloads
-and again under APT's lock, `agpc.sh` rejects legacy/incomplete uchatd packages
-or orphaned Inbox state. Existing installations must first complete the
-[uChat component migration and upgrade](https://github.com/motebus/download/releases/download/uchat-v3.2.0-2/UPGRADE.md).
-The aggregate installer does not copy, delete or migrate messages. Fresh
-installations and fully installed uchatd `0.4.0-1` or newer are admitted;
-state changes during preflight and old package versions in the transaction are
-refused. Core's other component dependencies are unchanged.
+The two canonical target entries share the same native installation, migration,
+signed APT and detached-worker checks:
+
+| Installer | Requested packages |
+| --- | --- |
+| `agpc.sh` | Core `0.3.0-1`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-1`, uchatd `0.5.0-1` |
+| `agpc-full.sh` | Standard plus `agpc-apps 0.3.0-1` |
+
+`contextd` runs inside AGPC. CoD Server (`codd`) stays in the cloud and is not
+installed by either entry. Linux build, test and runtime are native; a future
+Windows implementation requires its own native service and package adapters.
+
+The Debian Apps package is formally renamed from `agent-apps` to `agpc-apps`.
+On a host with the old name, the full installer also selects the documentation-only
+`agent-apps 0.3.0-1` transition, which depends exactly on the new package. This
+preserves the dependency chain without package removals. Standard installation
+leaves existing apps alone and refuses introducing the app composition through
+an unexpected dependency. The historical `agent-sphere-apps.sh` URL remains a
+compatibility copy of the full entry; it is not a third profile. Both new signed
+installer assets need independent digest/signature readback before publication.
+
+`uchatd 0.5.0` uses durable Redis and rejects runtime SQLite. Before downloads
+and again under APT's lock, both entries reject pre-0.5 or incomplete uchatd
+packages and orphaned Inbox state. Existing SQLite installations must first
+follow the separate uchatd package's offline import/upgrade procedure. This
+installer never copies, deletes or migrates messages. A proven fresh installation
+explicitly provisions the empty Redis store after package verification; every
+existing store retains its identity and is never reinitialized. Package/state
+drift and older chat versions are refused before the transaction. Apps requires
+`uchat >= 3.2.0-4`; Core owns the daemon dependency in both profiles.
 
 The installer acquires the pinned unmodified official Obsidian
 amd64 DEB, verifies its SHA-256 and Debian metadata, and supplies it to the
@@ -264,7 +287,7 @@ python3 scripts/check-installer-transaction.py
 ```
 
 Metadata-only APT fixtures prove Core dependency closure without manager/UI
-packages. Installer unit tests exercise four-entry selection and exact
+packages. Installer unit tests exercise standard/full selection, the Apps transition and exact
 preflight policies. Native DPKG/APT migration fixtures use checksum-pinned old
 and new artifacts in disposable namespaces; mocked service observations do
 not establish live readiness. Detached-worker tests use real Linux namespaces
@@ -284,8 +307,8 @@ The installer accepts `--user USER`, defaulting to the authenticated sudo login
 account. That account is carried into the detached installation job, where the
 native uChat helper configures its protected `@machine-name` after package
 verification. No account password is collected by the installer. Root-only
-installation also supports open machine chat for local login accounts. Open
-`uchat`, type `@machine-name`, and chat without enrollment or pair keys.
+installation does not select an account or initialize owner credentials. The full
+Apps profile supplies the `uchat` terminal client; standard supplies its daemon.
 AGPC Manager leads with Chat; More settings contains optional managed team setup.
 
 The obsolete CX residual classifier accepts the three reviewed native DPKG file-list forms:
@@ -307,6 +330,6 @@ Provider installation does not grant access to external services.
 
 `cx-loop` contains both the `cx-loop` CLI and `cx-loopd` daemon. Its dependency
 on `uchatd` brings the shared Inbox service into headless Core installations;
-Redis stays private to `uchatd`. CX-Loop is installed disabled with no task
+Redis remains independent durable infrastructure accessed only through admitted service adapters. CX-Loop is installed disabled with no task
 execution grants. Dispatch requires a separately admitted Mesh gateway; this
 release does not include that development gateway or start a Codex worker.

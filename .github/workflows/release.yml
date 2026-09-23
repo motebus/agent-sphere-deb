@@ -31,8 +31,8 @@ jobs:
         run: |
           python3 scripts/package.py build
           python3 -m unittest discover -s tests -v
-          bash -n agpc.sh
-          cmp agpc.sh agent-sphere-apps.sh
+          bash -n agpc.sh agpc-full.sh agent-sphere-apps.sh
+          python3 scripts/embed-installer-support.py
       - name: Verify direct CX retirement with genuine archives
         run: sudo python3 scripts/check-cx-retirement.py
       - name: Bind source artifacts
@@ -67,8 +67,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          python3 -c 'import json; p=json.load(open("component-baseline.json")); assert not p.get("pending_native_components"), "Native component artifacts remain required before publication"'
           version=$(sed -n 's/^Version: //p' packaging/control)
           python3 scripts/package.py verify "dist/agent-sphere_${version}_all.deb"
           cmp agpc.sh dist/agpc.sh
+          cmp agpc-full.sh dist/agpc-full.sh
           cmp agent-sphere-apps.sh dist/agent-sphere-apps.sh
           gh release create "v${version}" dist/* --target "$GITHUB_SHA" --title "Agent Sphere ${version}" --notes-file RELEASE_NOTES.md --prerelease --latest=false

@@ -1,6 +1,6 @@
 [Unit]
 Description=Agent Sphere headless core
-Wants=sphered.service moted.service mote-proxy.service mote-transportd.service mlink.service mote-secd.service agosd.service model-router.service
+Wants=sphered.service moted.service mote-proxy.service mote-transportd.service mlink.service mote-secd.service agosd.service model-router.service contextd.service uchatd.service
 After=basic.target
 
 [Install]

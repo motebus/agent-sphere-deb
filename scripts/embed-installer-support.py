@@ -23,12 +23,18 @@ def main():
     before, section = text.split(START)
     _, after = section.split(END)
     wanted = before + expected() + after
+    full = wanted.replace('agpc_profile=standard\nagpc_entrypoint=agpc.sh\n',
+                          'agpc_profile=full\nagpc_entrypoint=agpc-full.sh\n', 1)
+    assert full != wanted, 'missing fixed installer profile'
     if sys.argv[1:]:
         installer.write_text(wanted)
-        (ROOT / 'agent-sphere-apps.sh').write_text(wanted)
+        for name in ('agpc-full.sh', 'agent-sphere-apps.sh'):
+            (ROOT / name).write_text(full)
+            (ROOT / name).chmod(0o755)
     else:
         assert text == wanted, 'embedded installer helper differs from reviewed source'
-        assert (ROOT / 'agent-sphere-apps.sh').read_bytes() == installer.read_bytes()
+        assert (ROOT / 'agpc-full.sh').read_text() == full
+        assert (ROOT / 'agent-sphere-apps.sh').read_text() == full
 
 
 if __name__ == '__main__':

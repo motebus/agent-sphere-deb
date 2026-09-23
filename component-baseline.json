@@ -1,7 +1,7 @@
 {
   "schema": "agent-sphere-component-baseline/v3",
   "aggregate_repository": "https://github.com/motebus/download",
-  "aggregate_tag": "agent-computer-v0.2.0-15",
+  "aggregate_tag": "agent-computer-v0.3.0-1",
   "artifact_verification_owner": "signed Agent Computer aggregate publication",
   "packages": [
     {
@@ -68,10 +68,24 @@
       "name": "cx-loop",
       "version": "0.1.0-4",
       "architecture": "amd64"
+    },
+    {
+      "name": "contextd",
+      "version": "0.1.0-1",
+      "architecture": "amd64"
+    },
+    {
+      "name": "uchatd",
+      "version": "0.5.0-1",
+      "architecture": "amd64"
     }
   ],
   "profile": "headless-core",
   "system_dependencies": {
     "init-system-helpers": "1.54"
-  }
+  },
+  "release_status": "target-composition-requires-signed-leaf-artifacts",
+  "pending_native_components": [
+    "contextd"
+  ]
 }

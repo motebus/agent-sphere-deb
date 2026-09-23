@@ -98,6 +98,11 @@ if sys.argv[-1] == 'uchatd':
     if not value:sys.exit(1)
     print(value)
     sys.exit(0)
+if sys.argv[-1] == 'agent-apps':
+    value=os.environ.get('APT_TEST_OLD_APPS','')
+    if not value:sys.exit(1)
+    if value=='query-error':sys.exit(2)
+    print(value);sys.exit(0)
 if sys.argv[-1] in ('mote-bridge-mcp','sphere-manager'):sys.exit(1)
 if sys.argv[-1] in ('cx-node','cx-agent','codex-mesh'):sys.exit(1)
 value=os.environ.get('APT_TEST_CHATD', '')
@@ -122,7 +127,7 @@ stage = 'update' if args == ['update'] else 'simulate' if '--simulate' in args e
 if os.environ.get('APT_TEST_FAIL') == stage:
     sys.exit(42)
 if stage == 'simulate':
-    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.1.0-2 stable)\\nInst agent-apps (0.1.0-1 stable)'))
+    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-1 stable)\\nInst contextd (0.1.0-1 stable)'))
 if stage == 'install':
     hook = next(a.split('=', 1)[1] for a in args if a.startswith('DPkg::Pre-Install-Pkgs::='))
     assert 'DPkg::Tools::Options::' + hook + '::Version=3' in args
@@ -203,6 +208,56 @@ print(state)
             'sphere-manager 3.1.0-1 amd64 none > - - none **REMOVE**\n')
         return artifact
 
+    def full_profile(self):
+        text=self.installer.read_text().replace('agpc_profile=standard\nagpc_entrypoint=agpc.sh\n',
+              'agpc_profile=full\nagpc_entrypoint=agpc-full.sh\n',1)
+        self.installer.write_text(text)
+
+    def test_standard_requires_contextd_and_preserves_apps_without_selecting_them(self):
+        self.env['APT_TEST_OLD_APPS']='install ok installed'
+        result=self.run_installer('--yes')
+        self.assertEqual(result.returncode,0,result.stderr)
+        for args in self.calls()[1:]:
+            self.assertIn('contextd=0.1.0-1',args)
+            self.assertIn('uchatd=0.5.0-1',args)
+            self.assertFalse(any(arg.startswith(('agpc-apps=','agent-apps=')) for arg in args))
+        self.assertIn('standard packages installed',result.stdout)
+
+    def test_standard_refuses_app_composition_in_simulation_and_locked_transaction(self):
+        for name in ('agent-apps','agpc-apps'):
+            with self.subTest(name=name):
+                self.env['APT_TEST_PLAN']=f'Inst {name} (0.3.0-1 stable)'
+                result=self.run_installer('--yes')
+                self.assertNotEqual(result.returncode,0)
+                self.assertIn('outside the standard AGPC profile',result.stderr)
+                self.env.pop('APT_TEST_PLAN')
+                self.env['APT_TEST_ACTIONS']=f'{name} - - none < 0.3.0-1 all none /cache/apps.deb\n'
+                result=self.run_installer('--yes')
+                self.assertNotEqual(result.returncode,0)
+                self.assertIn('outside the standard AGPC profile',result.stderr)
+                self.env.pop('APT_TEST_ACTIONS')
+
+    def test_full_requires_apps_and_upgrades_existing_name_without_removal(self):
+        self.full_profile()
+        result=self.run_installer('--yes')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertIn('agpc-apps=0.3.0-1',self.calls()[-1])
+        self.assertNotIn('agent-apps=0.3.0-1',self.calls()[-1])
+        self.env['APT_TEST_OLD_APPS']='install ok installed'
+        result=self.run_installer('--yes')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertIn('agent-apps=0.3.0-1',self.calls()[-1])
+        self.assertNotIn('agent-apps-',self.calls()[-1])
+        self.assertIn('full packages installed',result.stdout)
+
+    def test_full_refuses_broken_predecessor_without_installing(self):
+        self.full_profile()
+        self.env['APT_TEST_OLD_APPS']='install ok unpacked'
+        result=self.run_installer('--yes')
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('agent-apps is not fully configured',result.stderr)
+        self.assertFalse(any('install' in args for args in self.calls()))
+
     def test_container_runtime_addition_is_refused_before_final_transaction(self):
         for name in ('docker.io', 'docker-ce', 'podman', 'containerd.io', 'runc', 'moby-engine'):
             with self.subTest(name=name):
@@ -215,7 +270,7 @@ print(state)
 
     def test_legacy_uchat_stops_before_download_or_apt(self):
         for value in ('install ok installed\n0.3.0-1', 'deinstall ok config-files\n0.3.0-1',
-                      'install ok unpacked\n0.4.0-1', 'query-error', 'malformed'):
+                      'install ok installed\n0.4.0-2', 'install ok unpacked\n0.5.0-1', 'query-error', 'malformed'):
             with self.subTest(value=value):
                 self.env['APT_TEST_UCHAT']=value
                 result=self.run_installer('--yes')
@@ -234,14 +289,14 @@ print(state)
         self.assertEqual(sentinel.read_bytes(),b'owner data')
 
     def test_migrated_uchat_allowed_and_late_drift_refused(self):
-        self.env['APT_TEST_UCHAT']='install ok installed\n0.4.0-1'
+        self.env['APT_TEST_UCHAT']='install ok installed\n0.5.0-1'
         result=self.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
         self.env['APT_TEST_FINAL_UCHAT']='install ok installed\n0.3.0-1'
         result=self.run_installer('--yes')
         self.assertNotEqual(result.returncode,0)
         self.assertIn('uChat migration is required at transaction time',result.stderr)
-        self.env['APT_TEST_FINAL_UCHAT']='install ok installed\n0.4.0-2'
+        self.env['APT_TEST_FINAL_UCHAT']='install ok installed\n0.5.0-2'
         result=self.run_installer('--yes')
         self.assertNotEqual(result.returncode,0)
         self.assertIn('uChat state changed after preflight',result.stderr)
@@ -362,9 +417,9 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:6], ['--simulate','install','agent-sphere=0.2.0-15','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','agent-apps=0.2.0-4'])
+        self.assertEqual(self.calls()[1][:7], ['--simulate','install','agent-sphere=0.3.0-1','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-1','uchatd=0.5.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
-        self.assertEqual(self.calls()[-1][-6:], ['install', *self.calls()[1][2:]])
+        self.assertEqual(self.calls()[-1][self.calls()[-1].index('install'):], ['install', *self.calls()[1][2:]])
         self.assertIn('--yes', self.calls()[-1])
         self.assertIn('health are separate checks', result.stdout)
         self.assertFalse(list(self.root.glob('agent-sphere-apps.*')))
@@ -498,7 +553,7 @@ print(state)
         self.env['APT_TEST_UID'] = '1000'
         result = self.run_installer('--help')
         self.assertEqual(result.returncode, 0)
-        self.assertIn('agent-sphere, agent-ultra, agpc-manager and agent-apps', result.stdout)
+        self.assertIn('agent-sphere, agent-ultra, agpc-manager, contextd and uchatd', result.stdout)
         self.assertEqual(self.calls(), [])
 
     def test_missing_apt_is_rejected(self):

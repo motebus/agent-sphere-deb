@@ -36,6 +36,8 @@ AGPC_STAGE
         printf 'stage=%q\n' "$stage"
         printf 'guard=%q\n' "$worker_guard"
         printf 'agpc_chat_user=%q\n' "${agpc_chat_user:-}"
+        printf 'agpc_profile=%q\n' "$agpc_profile"
+        printf 'uchat_state=%q\n' "$uchat_state"
         printf 'packages=('
         for argument in "${packages[@]}"; do
             [[ $argument != "$obsidian" ]] || argument=$worker_obsidian
@@ -75,19 +77,37 @@ phase=package-verification
 apt-get check
 dpkg --audit > "$stage/dpkg-audit.txt"
 test ! -s "$stage/dpkg-audit.txt"
-python3 - "${packages[@]}" > "$stage/packages.json" <<'AGPC_PACKAGES'
+python3 - "$agpc_profile" "${packages[@]}" > "$stage/packages.json" <<'AGPC_PACKAGES'
 import json,subprocess,sys
 records=[]
-for argument in sys.argv[1:]:
-    if not argument.startswith(('agent-sphere=','agent-ultra=','agpc-manager=','agent-apps=')):continue
+profile=sys.argv[1]
+required={'agent-sphere','agent-ultra','agpc-manager','contextd','uchatd'}
+if profile=='full':required.add('agpc-apps')
+elif profile!='standard':sys.exit('Unknown AGPC install profile')
+selected=set()
+for argument in sys.argv[2:]:
+    if not argument.startswith(tuple(name+'=' for name in required|{'agent-apps'})):continue
     name, version=argument.split('=',1)
     fields=subprocess.check_output(['dpkg-query','-W','-f=${Version}\n${Status}',name],text=True).splitlines()
     if fields!=[version,'install ok installed']:sys.exit('Expected AGPC entry package is not fully configured: '+name)
     records.append({'name':name,'version':version,'configured':True})
-assert len(records)==4
-print(json.dumps({'schema':'agpc.installed-entries/v1','packages':records,'full_runtime_ready':False},sort_keys=True))
+    assert name not in selected
+    selected.add(name)
+assert required.issubset(selected)
+print(json.dumps({'schema':'agpc.installed-entries/v1','profile':profile,'packages':records,'full_runtime_ready':False},sort_keys=True))
 AGPC_PACKAGES
 phase=uchat
+# Only a proven fresh installation is eligible for explicit store provisioning.
+# init-store itself refuses a prior identity or any nonempty Redis namespace.
+if [[ $uchat_state == absent ]]; then
+    systemctl stop uchatd.service
+    systemctl start uchatd-redis.service
+    install -d -m 0700 -o uchatd -g uchat /var/lib/uchatd
+    install -d -m 0755 -o uchatd -g uchat /run/uchatd
+    runuser -u uchatd -- /usr/sbin/uchatd init-store --config /etc/uchatd/uchatd.json
+    runuser -u uchatd -- /usr/sbin/uchatd check-store --config /etc/uchatd/uchatd.json
+    systemctl start uchatd.service
+fi
 if [[ -n $agpc_chat_user ]]; then
     /usr/libexec/uchat/setup-default.py --user "$agpc_chat_user" > "$stage/uchat.json"
 fi

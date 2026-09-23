@@ -105,7 +105,7 @@ installer never copies, deletes or migrates messages. A proven fresh installatio
 explicitly provisions the empty Redis store after package verification; every
 existing store retains its identity and is never reinitialized. Package/state
 drift and older chat versions are refused before the transaction. Apps requires
-`uchat >= 3.2.0-4`; Core owns the daemon dependency in both profiles.
+`uchat >= 3.2.0-5`; Core owns the daemon dependency in both profiles.
 
 The installer acquires the pinned unmodified official Obsidian
 amd64 DEB, verifies its SHA-256 and Debian metadata, and supplies it to the

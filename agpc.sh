@@ -9,7 +9,7 @@ usage() {
     printf '%s\n' \
         "Usage: $agpc_entrypoint [--yes] [--user USER] [--help]" \
         'Install native AGPC: agent-sphere, agent-ultra, agpc-manager, contextd and uchatd.' \
-        'agpc-full.sh additionally installs agpc-apps; existing applications are preserved.' \
+        'agpc-all.sh additionally installs agpc-apps; existing applications are preserved.' \
         'Supports Ubuntu 24.04 and 26.04 amd64; creates only missing reviewed APT key/source files.' \
         'Downloads the pinned official Obsidian DEB for the same APT transaction.' \
         'Run as root. Confirm the displayed plan unless --yes is supplied; installation continues in a detached systemd job.'

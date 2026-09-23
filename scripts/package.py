@@ -151,7 +151,7 @@ def manifest(out):
     installer = out / "agpc.sh"
     shutil.copyfile(ROOT / installer.name, installer)
     installer.chmod(0o755)
-    full = out / "agpc-full.sh"
+    full = out / "agpc-all.sh"
     alias = out / "agent-sphere-apps.sh"
     for script in (full, alias):
         shutil.copyfile(ROOT / script.name, script)
@@ -165,7 +165,7 @@ def manifest(out):
             "source": "https://github.com/motebus/agent-sphere-deb", "source_commit": commit,
             "source_ref": os.environ.get("GITHUB_REF", "local"), "asset": path.name, "sha256": digest(path),
             "assets": [{"name": p.name, "sha256": digest(p)} for p in [path, installer, full, alias]],
-            "installer_profiles": {"agpc.sh": "standard", "agpc-full.sh": "full", "agent-sphere-apps.sh": "full-compatibility"},
+            "installer_profiles": {"agpc.sh": "standard", "agpc-all.sh": "full", "agent-sphere-apps.sh": "full-compatibility"},
             "build_run": os.environ.get("GITHUB_SERVER_URL", "https://github.com") + "/" +
             os.environ.get("GITHUB_REPOSITORY", "motebus/agent-sphere-deb") + "/actions/runs/" +
             os.environ.get("GITHUB_RUN_ID", "local"),

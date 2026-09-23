@@ -5,10 +5,10 @@ class Bootstrap(unittest.TestCase):
   subprocess.run(['python3',str(ROOT/'scripts/check-bootstrap.py')],check=True)
  def test_canonical_alias_and_mutation_order(self):
   canonical=(ROOT/'agpc.sh').read_bytes()
-  full=(ROOT/'agpc-full.sh').read_bytes()
+  full=(ROOT/'agpc-all.sh').read_bytes()
   self.assertEqual(full,(ROOT/'agent-sphere-apps.sh').read_bytes())
   self.assertEqual(full,canonical.replace(b'agpc_profile=standard\nagpc_entrypoint=agpc.sh\n',
-                                         b'agpc_profile=full\nagpc_entrypoint=agpc-full.sh\n',1))
+                                         b'agpc_profile=full\nagpc_entrypoint=agpc-all.sh\n',1))
   text=canonical.decode()
   platform=text.index("\nagentsphere_platform_check || fail")
   guards=[text.index('\n'+name+'=$(classify_legacy_') for name in ['legacy_state','mcp_state','cx_state','manager_state']]

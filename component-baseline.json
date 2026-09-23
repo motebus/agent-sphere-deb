@@ -85,7 +85,5 @@
     "init-system-helpers": "1.54"
   },
   "release_status": "target-composition-requires-signed-leaf-artifacts",
-  "pending_native_components": [
-    "contextd"
-  ]
+  "pending_native_components": []
 }

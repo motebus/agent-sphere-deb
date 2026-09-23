@@ -210,7 +210,7 @@ print(state)
 
     def full_profile(self):
         text=self.installer.read_text().replace('agpc_profile=standard\nagpc_entrypoint=agpc.sh\n',
-              'agpc_profile=full\nagpc_entrypoint=agpc-full.sh\n',1)
+              'agpc_profile=full\nagpc_entrypoint=agpc-all.sh\n',1)
         self.installer.write_text(text)
 
     def test_standard_requires_contextd_and_preserves_apps_without_selecting_them(self):

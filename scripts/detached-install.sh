@@ -101,6 +101,7 @@ phase=uchat
 # init-store itself refuses a prior identity or any nonempty Redis namespace.
 if [[ $uchat_state == absent ]]; then
     systemctl stop uchatd.service
+    systemctl reset-failed uchatd.service || true
     systemctl start uchatd-redis.service
     install -d -m 0700 -o uchatd -g uchat /var/lib/uchatd
     install -d -m 0755 -o uchatd -g uchat /run/uchatd

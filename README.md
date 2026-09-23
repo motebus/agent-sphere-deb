@@ -82,7 +82,7 @@ signed APT and detached-worker checks:
 | Installer | Requested packages |
 | --- | --- |
 | `agpc.sh` | Core `0.3.0-1`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-1`, uchatd `0.5.0-1` |
-| `agpc-full.sh` | Standard plus `agpc-apps 0.3.0-1` |
+| `agpc-all.sh` | Standard plus `agpc-apps 0.3.0-1` |
 
 `contextd` runs inside AGPC. CoD Server (`codd`) stays in the cloud and is not
 installed by either entry. Linux build, test and runtime are native; a future

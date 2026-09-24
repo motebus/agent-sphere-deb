@@ -20,7 +20,7 @@ for path in ('/etc','/run','/var'):P(path).chmod(0o755)
 P('/etc/ssh').mkdir();P('/var/empty').mkdir()
 P('/etc/passwd').write_text('root:x:0:0:root:/root:/bin/bash\nsshd:x:74:74:sshd:/var/empty:/usr/sbin/nologin\n')
 P('/etc/group').write_text('root:x:0:\nsshd:x:74:\n')
-P('/etc/ssh/sshd_config').write_text('Port 22\nListenAddress 127.0.0.1\nHostKey /etc/ssh/test_host_key\nPidFile /run/sshd-test.pid\nUsePAM no\nPasswordAuthentication no\nPermitRootLogin no\n')
+P('/etc/ssh/sshd_config').write_text('Port 22\nListenAddress 127.0.0.1\nHostKey /etc/ssh/ssh_host_ed25519_key\nHostKey /etc/ssh/test_host_key\nPidFile /run/sshd-test.pid\nUsePAM no\nPasswordAuthentication no\nPermitRootLogin no\n')
 subprocess.run(['/usr/bin/ssh-keygen','-q','-t','ed25519','-N','','-f','/etc/ssh/test_host_key'],check=True)
 spec=importlib.util.spec_from_file_location('ssh','/source/scripts/ssh-readiness.py');ssh=importlib.util.module_from_spec(spec);spec.loader.exec_module(ssh)
 def snapshot():
@@ -50,17 +50,24 @@ def command(args,timeout=30):
 ssh.command=command;ssh.unit=unit
 try:
     report=ssh.ensure_ssh_ready()
-    assert snapshot()==before
-    assert not any(x in args for args in calls for x in ('restart','unmask','ssh-keygen'))
+    after=snapshot()
+    assert all(after[path]==value for path,value in before.items())
+    assert '/etc/ssh/ssh_host_ed25519_key' in after and '/etc/ssh/ssh_host_ed25519_key.pub' in after
+    assert calls.count(['/usr/bin/ssh-keygen','-A'])==1
+    assert not any(x in args for args in calls for x in ('restart','unmask'))
+    calls.clear()
+    ssh.ensure_ed25519_host_key()
+    assert snapshot()==after and not calls
     if report['error']:
         error=P('/run/sshd.log').read_text()
         if sys.argv[1]=='required':raise AssertionError({'report':report,'daemon_error':error})
         assert report['error']=='loopback-ssh-banner-unavailable',report
+        assert not report['ssh_host_key_ready'],report
         assert any(s in error for s in ('setgroups','setgid','setuid','privilege separation','Operation not permitted','Invalid argument','Bind to port 22 on 127.0.0.1 failed: Permission denied.')),error
-        print(json.dumps({'real_configuration_check':True,'real_loopback_banner':'unavailable-local-namespace-privileges','configuration_and_keys_preserved':True,'privileged_ci_gate_required':True}))
+        print(json.dumps({'real_configuration_check':True,'real_loopback_banner':'unavailable-local-namespace-privileges','configuration_and_keys_preserved':True,'ed25519_pair_generated_and_retained':True,'privileged_ci_gate_required':True}))
     else:
-        assert report['loopback_ssh_ready'] and report['boot_enabled'] and not report['full_runtime_ready']
-        print(json.dumps({'real_configuration_check':True,'real_loopback_banner':True,'configuration_and_keys_preserved':True,'systemd_and_dpkg_observations':'fixtures','real_linux_namespace':True}))
+        assert report['loopback_ssh_ready'] and report['boot_enabled'] and report['ssh_host_key_ready'] and not report['full_runtime_ready']
+        print(json.dumps({'real_configuration_check':True,'real_loopback_banner':True,'live_ed25519_signature_verified':True,'configuration_and_keys_preserved':True,'ed25519_pair_generated_and_retained':True,'systemd_and_dpkg_observations':'fixtures','real_linux_namespace':True}))
 finally:
     if daemon is not None:daemon.terminate();daemon.wait(timeout=5)
 # Invalid owner config must fail before any systemd enable/start operation.

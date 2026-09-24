@@ -1,4 +1,4 @@
-Agent Sphere 0.3.0-38 fixes the native mote-chatd retirement transaction and admits the exact residual MCP state left when
+Agent Sphere 0.3.0-39 binds the final reproducible retirement bridge bytes and fixes the native mote-chatd retirement transaction and admits the exact residual MCP state left when
 `mote-mcpd 3.1.0-1` has been removed but its configuration is retained. The
 installer binds the obsolete `mote-bridge-mcp 3.0.0-2` record to that exact
 successor owner, architecture and version, then lets the signed APT transaction

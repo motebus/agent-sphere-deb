@@ -50,6 +50,10 @@ class PackageTests(unittest.TestCase):
             self.assertIn(version, prerm)
         self.assertEqual(package.fields((package.RETIREMENT / "control").read_text())["Depends"],
                          "uchatd (>= 0.6.0-1)")
+        with tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:
+            bridge = package.build_retirement(Path(tmp), package.RETIREMENT_EPOCH)
+            digest = package.digest(bridge)
+        self.assertIn(digest, (ROOT / "agpc.sh").read_text())
 
     def test_reproducible_build(self):
         with tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:

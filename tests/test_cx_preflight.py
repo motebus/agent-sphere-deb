@@ -9,7 +9,7 @@ class CxPreflightTests(unittest.TestCase):
  def setUp(self):
   self.records={'cx-agent':'0.3.4-2\namd64\ninstall ok installed\n','codex-mesh':'1.0.0-1\namd64\ninstall ok installed\n'+'\n'.join(' '+p+' '+v for p,v in module.MESH_FILES.items())}
   self.files=[];self.fingerprint='stable'
-  def checked(path,**kwargs):self.files.append((path,kwargs));return [path,self.fingerprint]
+  def checked(path,**kwargs):self.files.append((path,kwargs));return [path,self.fingerprint,1]
   self.inspect=mock.patch.object(module,'checked',side_effect=checked);self.inspect.start();self.addCleanup(self.inspect.stop)
   self.query=mock.patch.object(module,'query',side_effect=lambda name:self.records.get(name));self.query.start();self.addCleanup(self.query.stop)
   self.units=mock.patch.object(module,'unit_policy',return_value={});self.units.start();self.addCleanup(self.units.stop)
@@ -36,13 +36,24 @@ class CxPreflightTests(unittest.TestCase):
   with mock.patch.object(module.subprocess,'run',side_effect=lambda args,**kwargs:subprocess.CompletedProcess(args,0,'cx-mesh: '+args[-1],'')):
    self.assertTrue(module.classify().startswith('cx-node=-,cx-agent=-,codex-mesh=-;'))
   self.records['cx-mesh']='2.0.0-2\namd64\ninstall ok installed\n'
-  with mock.patch.object(module,'current_cx_paths',return_value=False),mock.patch.object(module.subprocess,'run',side_effect=lambda args,**kwargs:subprocess.CompletedProcess(args,0,'cx-mesh: '+args[-1],'')):
+  with mock.patch.object(module,'current_cx_paths',return_value=False),mock.patch.object(module.subprocess,'run',side_effect=lambda args,**kwargs:subprocess.CompletedProcess(args,1,'','not found')):
    self.assertTrue(module.classify().startswith('cx-node=-,cx-agent=-,codex-mesh=-;'))
+  checked={path:kwargs for path,kwargs in self.files}
+  for path,(digest,mode) in module.CX_MESH_2002_INFO.items():
+   self.assertEqual(checked[path],{'digest':digest,'mode':mode})
   self.records['cx-mesh']='2.0.0-3\namd64\ninstall ok installed\n'
   with self.assertRaisesRegex(ValueError,'exact installed successor'):module.classify()
   self.records['cx-mesh']='1.1.0-1\namd64\ninstall ok installed\n'
   with mock.patch.object(module.subprocess,'run',return_value=subprocess.CompletedProcess([],0,'codex-mesh: wrong','')):
    with self.assertRaisesRegex(ValueError,'sole successor'):module.classify()
+ def test_retired_mesh_paths_and_successor_metadata_are_exact(self):
+  self.records={'codex-mesh':'1.0.0-1\namd64\ndeinstall ok config-files\n'+'\n'.join(' '+p+' '+v+' obsolete' for p,v in module.MESH_FILES.items()),'cx-mesh':'2.0.0-2\namd64\ninstall ok installed\n'}
+  with mock.patch.object(module,'current_cx_paths',return_value=False),mock.patch.object(module.os.path,'lexists',side_effect=lambda p:p in module.MESH_FILES):
+   with self.assertRaisesRegex(ValueError,'extension file remains'):module.classify()
+  with mock.patch.object(module,'current_cx_paths',return_value=False),mock.patch.object(module.subprocess,'run',return_value=subprocess.CompletedProcess([],0,'cx-mesh: /unexpected','')):
+   with self.assertRaisesRegex(ValueError,'unexpected package ownership'):module.classify()
+  with mock.patch.object(module,'current_cx_paths',return_value=False),mock.patch.object(module.subprocess,'run',return_value=subprocess.CompletedProcess([],1,'','not found')),mock.patch.object(module,'checked',side_effect=ValueError('unreviewed CX removal hook')):
+   with self.assertRaisesRegex(ValueError,'unreviewed CX removal hook'):module.classify()
  def test_custom_unit_or_changed_hook_is_not_hidden_by_version(self):
   with mock.patch.object(module,'unit_policy',side_effect=ValueError('custom predecessor unit')):
    with self.assertRaisesRegex(ValueError,'custom predecessor'):module.classify()

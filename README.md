@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.3.0-31` is the headless core of the native AGPC standard/full
+`agent-sphere 0.3.0-33` is the headless core of the native AGPC standard/full
 installation profiles. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -27,8 +27,8 @@ Exiting the management UI must not stop the backend or Core.
 | Required component | Minimum version |
 | --- | --- |
 | sphered | 4.1.0-2 |
-| moted | 3.6.0-2 |
-| mote-proxy | 2.0.0-5 |
+| moted | 3.6.0-7 |
+| mote-proxy | 2.0.0-9 |
 | mote-transportd | 2.0.0-6 |
 | mlink | 2.1.0-1 |
 | mote-secd | 1.0.0-2 |
@@ -51,10 +51,15 @@ lifecycle. Each dependency owns its executable, service and configuration. `mote
 
 This is a composition prerelease. Each dependency remains a real native package
 with its own release and lifecycle. The complete installer requires the matching
-future signed `agent-computer-v0.3.0-37` aggregate; publishing this Core source release
+future signed `agent-computer-v0.3.0-40` aggregate; publishing this Core source release
 alone does not establish fleet or live runtime readiness. Existing published
 tags remain immutable. The reviewed native `contextd` runtime/package is included
-in the matching signed aggregate cohort.
+in the matching signed aggregate cohort. MoteD and Mote Proxy host-key releases
+remain pending exact-main artifact admission. Publishing a component prerelease
+does not activate the global installer or signed APT cohort; that promotion also
+requires the MoteC registration/resolve service and authorized device/S Channel
+policy. Missing authority remains denied. Older native preview package cohorts
+are separate and are not upgraded or certified by this composition release.
 
 ## Headless startup
 
@@ -79,7 +84,7 @@ signed APT and detached-worker checks:
 
 | Installer | Requested packages |
 | --- | --- |
-| `agpc.sh` | Core `0.3.0-31`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchatd `0.5.0-1` |
+| `agpc.sh` | Core `0.3.0-33`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchatd `0.5.0-1` |
 | `agpc-all.sh` | Standard plus `agpc-apps 0.3.0-1` |
 
 `contextd` runs inside AGPC. CoD Server (`codd`) stays in the cloud and is not

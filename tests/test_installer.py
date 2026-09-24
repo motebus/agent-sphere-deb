@@ -54,7 +54,7 @@ agentsphere_run_detached() {
         self.log = self.root / "apt-calls.jsonl"
         self.env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ['PATH'],
                         APT_TEST_LOG=str(self.log), TMPDIR=str(self.root))
-        for key in ('APT_TEST_FAIL', 'APT_TEST_UID', 'APT_TEST_PLAN', 'APT_TEST_ACTIONS', 'APT_TEST_OBSIDIAN', 'APT_TEST_CHATD', 'APT_TEST_CHATD_FILE', 'APT_TEST_FINAL_CHATD', 'APT_TEST_HOOK', 'APT_TEST_PROMPT', 'APT_TEST_CHATD_ACCESS', 'APT_TEST_MANAGER', 'APT_TEST_FINAL_MANAGER', 'APT_TEST_MANAGER_BAD_DIGEST'):
+        for key in ('APT_TEST_FAIL', 'APT_TEST_UID', 'APT_TEST_PLAN', 'APT_TEST_ACTIONS', 'APT_TEST_OBSIDIAN', 'APT_TEST_CHATD', 'APT_TEST_CHATD_FILE', 'APT_TEST_FINAL_CHATD', 'APT_TEST_HOOK', 'APT_TEST_PROMPT', 'APT_TEST_CHATD_ACCESS', 'APT_TEST_UCHAT', 'APT_TEST_MANAGER', 'APT_TEST_FINAL_MANAGER', 'APT_TEST_MANAGER_BAD_DIGEST'):
             self.env.pop(key, None)
         for name in ("agpc-manager", "sphere-manager"):
             self.write_fake(name, """
@@ -127,7 +127,7 @@ stage = 'update' if args == ['update'] else 'simulate' if '--simulate' in args e
 if os.environ.get('APT_TEST_FAIL') == stage:
     sys.exit(42)
 if stage == 'simulate':
-    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-32 stable)\\nInst contextd (0.1.0-27 stable)'))
+    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-33 stable)\\nInst contextd (0.1.0-27 stable)'))
 if stage == 'install':
     hook = next(a.split('=', 1)[1] for a in args if a.startswith('DPkg::Pre-Install-Pkgs::='))
     assert 'DPkg::Tools::Options::' + hook + '::Version=3' in args
@@ -417,7 +417,7 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:7], ['--simulate','install','agent-sphere=0.3.0-32','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-27','uchatd=0.5.0-1'])
+        self.assertEqual(self.calls()[1][:7], ['--simulate','install','agent-sphere=0.3.0-33','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-27','uchatd=0.5.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][self.calls()[-1].index('install'):], ['install', *self.calls()[1][2:]])
         self.assertIn('--yes', self.calls()[-1])
@@ -449,16 +449,23 @@ print(state)
     def ordinary_record(self, state='installed'):
         return state+'\n2.0.0-4\n /etc/mote/mote-chatd/mote-chatd-deb.env '+'a'*32
 
-    def test_ordinary_release_uses_runtime_replacement_without_retention(self):
+    def test_ordinary_release_uses_existing_uchatd_replacement_without_retention(self):
         self.env['APT_TEST_CHATD']=self.ordinary_record()
-        artifact=self.root/'transport.deb';artifact.touch()
-        self.env['APT_TEST_PLAN']='Remv mote-chatd [2.0.0-4]\nInst mote-transportd (2.0.0-6 stable)'
-        self.env['APT_TEST_ACTIONS']=('mote-chatd 2.0.0-4 amd64 none > - - none **REMOVE**\n'
-            f'mote-transportd - - none < 2.0.0-6 amd64 none {artifact}\n')
+        self.env['APT_TEST_UCHAT']='install ok installed\n0.5.0-1'
+        self.env['APT_TEST_PLAN']='Remv mote-chatd [2.0.0-4]'
+        self.env['APT_TEST_ACTIONS']='mote-chatd 2.0.0-4 amd64 none > - - none **REMOVE**\n'
         result=self.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertNotIn('mote-chatd=2.0.0-6',self.calls()[-1])
         self.assertIn('mote-chatd-',self.calls()[-1])
+
+    def test_chatd_removal_without_current_or_planned_uchatd_is_refused(self):
+        self.env['APT_TEST_CHATD']=self.ordinary_record()
+        self.env['APT_TEST_PLAN']='Remv mote-chatd [2.0.0-4]'
+        self.env['APT_TEST_ACTIONS']='mote-chatd 2.0.0-4 amd64 none > - - none **REMOVE**\n'
+        result=self.run_installer('--yes')
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('lacks its replacement',result.stderr)
 
     def test_exact_public_cx_baseline_is_checked_before_removal(self):
         self.fake_mcp_classifier('absent')

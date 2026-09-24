@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.3.0-33` is the headless core of the native AGPC standard/full
+`agent-sphere 0.3.0-34` is the headless core of the native AGPC standard/full
 installation profiles. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -27,8 +27,8 @@ Exiting the management UI must not stop the backend or Core.
 | Required component | Minimum version |
 | --- | --- |
 | sphered | 4.1.0-2 |
-| moted | 3.6.0-2 |
-| mote-proxy | 2.0.0-5 |
+| moted | 3.6.0-7 |
+| mote-proxy | 2.0.0-9 |
 | mote-transportd | 2.0.0-6 |
 | mlink | 2.1.0-1 |
 | mote-secd | 1.0.0-2 |
@@ -51,10 +51,15 @@ lifecycle. Each dependency owns its executable, service and configuration. `mote
 
 This is a composition prerelease. Each dependency remains a real native package
 with its own release and lifecycle. The complete installer requires the matching
-future signed `agent-computer-v0.3.0-37` aggregate; publishing this Core source release
+future signed `agent-computer-v0.3.0-41` aggregate; publishing this Core source release
 alone does not establish fleet or live runtime readiness. Existing published
 tags remain immutable. The reviewed native `contextd` runtime/package is included
-in the matching signed aggregate cohort.
+in the matching signed aggregate cohort. MoteD and Mote Proxy host-key package inputs
+require the admitted exact-main artifacts named in the reviewed aggregate. Publishing a component prerelease
+does not activate the global installer or signed APT cohort; that promotion also
+requires the MoteC registration/resolve service and authorized device/S Channel
+policy. Missing authority remains denied. Older native preview package cohorts
+are separate and are not upgraded or certified by this composition release.
 
 ## Headless startup
 
@@ -79,7 +84,7 @@ signed APT and detached-worker checks:
 
 | Installer | Requested packages |
 | --- | --- |
-| `agpc.sh` | Core `0.3.0-33`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchatd `0.5.0-1` |
+| `agpc.sh` | Core `0.3.0-34`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchatd `0.5.0-1` |
 | `agpc-all.sh` | Standard plus `agpc-apps 0.3.0-1` |
 
 `contextd` runs inside AGPC. CoD Server (`codd`) stays in the cloud and is not
@@ -121,17 +126,33 @@ record is not success. Do not start another transaction while the job is active.
 A one-hour observer timeout does not stop the worker.
 
 After APT finishes, the job checks package consistency, exact configured entry
-versions and the existing OpenSSH server. It validates `sshd -t`, enables and
-starts the existing `ssh.socket` or `ssh.service` activation path as appropriate,
+versions and the existing OpenSSH server. It ensures the standard ED25519 host
+key pair exists, validates `sshd -t`, and enables and starts the existing
+`ssh.socket` or `ssh.service` activation path as appropriate,
 and requires an SSH banner from `127.0.0.1:22`, the existing local MoteD handoff
-target. An explicitly masked service, invalid owner configuration or unavailable
+target. A bounded OpenSSH handshake then proves that this listener holds the
+private key corresponding to the validated ED25519 public file. The probe pins
+only that public key in a temporary `0700` directory and `0600` known_hosts file,
+uses strict host verification, sends no user credentials, opens no sessions, and
+removes its files and process after verification. It reports success only after
+OpenSSH verifies the key-exchange signature; diagnostic output is never published.
+Ordinary diagnostics are suppressed; only the local OpenSSH completion record,
+identified by its source function and the probe's process ID, can establish proof.
+A custom listener serving another key, an old key retained by a running daemon,
+or an invalid signature fails verification without restarting or reconfiguring SSH.
+An explicitly masked service, invalid owner configuration or unavailable
 port fails verification visibly. An unused masked socket remains unchanged. An enabled but inactive socket
 also remains stopped while its already-running service owns the listener;
 its boot enablement and the actual SSH banner are still checked.
-Only a missing, trusted `/run/sshd` directory is created for configuration
-validation; SSH keys, authentication, listen settings and firewall rules are
-not rewritten. No restart or unmask is performed. Mote identity, MoteC resource
-resolution and external reachability are separate and remain unverified here.
+When both `/etc/ssh/ssh_host_ed25519_key` and its `.pub` file are absent, OpenSSH
+`ssh-keygen -A` creates missing host keys. Existing keys and their permissions
+are preserved. Partial key pairs, untrusted file ownership/permissions or an
+invalid ED25519 public key fail verification for owner repair; the installer
+never reads private key contents. It also creates a missing, trusted
+`/run/sshd` directory for configuration validation. Authentication, listen
+settings and firewall rules are not rewritten. No restart or unmask is performed.
+Mote identity, MoteC resource resolution and external reachability are separate
+and remain unverified here.
 
 Successful installation prints the result and exits. Open
 `/usr/bin/agpc-manager` manually for deliberate owner setup; no UI is launched.
@@ -292,6 +313,11 @@ check and daemon in an empty network/filesystem namespace. Privileged CI require
 the actual port-22 banner; a local single-UID namespace may report insufficient
 bind or privilege-separation permissions and does not count as that CI gate.
 Synthetic SSH configuration and test keys never leave the isolated namespace.
+Separate disposable `sshd -i` fixtures exercise real signature verification on
+ephemeral loopback ports without elevated privileges, including custom-key,
+stale-key, corrupted-signature and forged peer-debug refusals. Those tests preserve the production
+probe's pin and options but map its fixed port 22 to the fixture port; they do
+not establish live port-22 readiness or systemd activation.
 These tests do not prove a reboot, real systemd boot activation or a live Mote
 connection. The signed aggregate publisher owns actual
 full-cohort dependency resolution, public artifact verification and native

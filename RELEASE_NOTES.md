@@ -1,17 +1,28 @@
-Agent Sphere 0.3.0-33 admits the exact installed `cx-mesh 2.0.0-2` successor
-when the retired Codex Mesh extension paths are absent and unowned, and the
-installed successor metadata exactly matches the reviewed native package. This
-lets an already upgraded native AGPC continue without a CX downgrade.
+Agent Sphere 0.3.0-34 verifies that the running local SSH server proves possession
+of the ED25519 host identity available for MoteD registration. The installer
+validates the default public host key and completes a pinned, unauthenticated
+OpenSSH key exchange on 127.0.0.1:22 before reporting SSH readiness.
 
-The reviewed `mote-chatd 2.0.0-4/2.0.0-6` retirement now names exact
-`uchatd 0.5.0-1` as its successor. An already installed Redis-backed uchatd
-satisfies the replacement check, so the obsolete package can be removed without
-reinstalling an unrelated transport component.
+- A missing host-key pair is generated through OpenSSH. Existing keys are retained;
+  incomplete, unsafe or mismatched key state fails readiness without rotation.
+- The probe disables authentication, commands, sessions and forwarding. It uses
+  temporary protected known_hosts files and never exposes SSH debug contents.
+- Custom server keys and a stale running key that differ from the public file
+  fail readiness. SSH configuration and existing listeners are preserved.
+- The exact installed cx-mesh 2.0.0-2 successor remains admitted when retired
+  extension paths are absent and unowned and package metadata matches the
+  reviewed native package. Unlisted successors remain refused.
+- Retired mote-chatd 2.0.0-4/2.0.0-6 uses exact uchatd 0.5.0-1 as its
+  successor, including an already installed Redis-backed daemon, while retaining
+  both preflight and APT-lock replacement checks.
+- Core retains contextd 0.1.0-27 and durable Redis-backed uchatd. Full adds
+  agpc-apps 0.3.0-1 with the existing agent-apps transition. Existing data and
+  configuration are preserved; pre-0.5 uchatd still requires offline migration.
 
-- agpc.sh requires the native contextd and durable Redis-backed uchatd in Core.
-- agpc-all.sh adds agpc-apps 0.3.0-1, upgrading an installed agent-apps name through its exact dependency transition.
-- Both profiles preserve configuration, application data, SSH checks and detached installation; codd remains cloud-side.
-- Unlisted CX successor versions remain refused before download or package changes.
-- Pre-0.5 uchatd installations require their separate offline SQLite-to-Redis cutover. Only verified fresh installs initialize an empty store.
-
-This release carries the reviewed native contextd runtime and matching signed aggregate cohort. AGPC remains native DEB/systemd installation; Docker and OCI are not required on the local host.
+This candidate requires MoteD 3.6.0-7 and Mote Proxy 2.0.0-9 for host-public-key
+registration and strict trusted resolution. Their exact-main artifacts must be
+admitted before component publication. Global installer/cohort activation requires
+MoteC readiness and authorized device/S Channel policy; missing authority remains
+denied. This installer does not create device authority or establish fleet trust
+readiness. Older native preview package cohorts remain separately versioned.
+AGPC uses native DEB/systemd installation; local Docker and OCI are not required.

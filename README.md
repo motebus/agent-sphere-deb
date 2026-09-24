@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.3.0-34` is the headless core of the native AGPC standard/full
+`agent-sphere 0.3.0-35` is the headless core of the native AGPC standard/full
 installation profiles. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -84,7 +84,7 @@ signed APT and detached-worker checks:
 
 | Installer | Requested packages |
 | --- | --- |
-| `agpc.sh` | Core `0.3.0-34`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchatd `0.5.0-1` |
+| `agpc.sh` | Core `0.3.0-35`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchatd `0.5.0-1` |
 | `agpc-all.sh` | Standard plus `agpc-apps 0.3.0-1` |
 
 `contextd` runs inside AGPC. CoD Server (`codd`) stays in the cloud and is not
@@ -197,11 +197,13 @@ the reviewed bootstrap or private transaction stage and install no Python daemon
 or alternate package manager. They remain installer support; a future replacement
 requires its own review and does not change the component runtime language policy.
 
-`mote-chatd` is retired. The installer removes a reviewed old runtime or former
-documentation record with the explicit `mote-chatd-` selector while installing
-native `mote-transportd`. Fresh hosts receive no `mote-chatd` package or
-virtual dependency, and repeated installation remains idempotent after the
-retired record is gone.
+`mote-chatd` is retired into native `uchatd`. A reviewed installed package whose
+old removal hook still protects the locked legacy configuration is first
+upgraded to the signed `mote-chatd 2.0.0-7` retirement bridge, then removed in
+the same durable installation job with the explicit `mote-chatd-` selector.
+The bridge contains no daemon, fresh hosts never install it, the old
+configuration remains a residual DPKG record, and repeated installation is
+idempotent after the installed package is gone.
 
 The MCP rename supports exact `mote-bridge-mcp 3.0.0-2` metadata and its reviewed
 removal hook/helper. The old hook deletes its managed system Codex table, so

@@ -1,0 +1,43 @@
+#!/bin/sh
+set -eu
+target=/etc/mote/mote-chatd/mote-chatd-mchat.env
+
+[ "${1-}" = upgrade ] || {
+    echo 'mote-chatd retirement bridge is upgrade-only' >&2
+    exit 1
+}
+case "${2-}" in 2.0.0-4|2.0.0-6) ;; *)
+    echo 'mote-chatd retirement bridge requires a reviewed predecessor' >&2
+    exit 1 ;;
+esac
+dpkg-query -W -f='${Conffiles}\n' mote-chatd 2>/dev/null |
+    grep -Fq " $target " || {
+        echo 'mote-chatd retirement bridge requires locked legacy ownership' >&2
+        exit 1
+    }
+[ -f "$target" ] && [ ! -L "$target" ] || {
+    echo 'mote-chatd locked legacy configuration is missing or unsafe' >&2
+    exit 1
+}
+[ "$(stat -c '%u' "$target")" = 0 ] || {
+    echo 'mote-chatd locked legacy configuration is not root-owned' >&2
+    exit 1
+}
+mode=$(stat -c '%a' "$target")
+[ $((0$mode & 0022)) -eq 0 ] || {
+    echo 'mote-chatd locked legacy configuration is group/other writable' >&2
+    exit 1
+}
+state=$(dpkg-query -W -f='${Status}\n${Version}' uchatd 2>/dev/null) || {
+    echo 'mote-chatd retirement requires installed uchatd' >&2
+    exit 1
+}
+case "$state" in 'install ok installed
+'0.5.0-1) ;; *)
+    echo 'mote-chatd retirement requires exact uchatd 0.5.0-1' >&2
+    exit 1 ;;
+esac
+if [ -d /run/systemd/system ]; then
+    systemctl --system stop mote-chatd.service >/dev/null 2>&1 || true
+    systemctl --system disable mote-chatd.service >/dev/null 2>&1 || true
+fi

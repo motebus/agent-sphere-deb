@@ -1,4 +1,17 @@
-Agent Sphere 0.3.0-34 verifies that the running local SSH server proves possession
+Agent Sphere 0.3.0-35 adds the signed, upgrade-only `mote-chatd 2.0.0-7`
+retirement bridge. The installer uses it only for reviewed installed
+`mote-chatd 2.0.0-4/2.0.0-6` records whose legacy removal hook protects the
+locked configuration, then removes the bridge in the same durable job. It
+contains no daemon, does not read the legacy configuration, requires exact
+installed `uchatd 0.5.0-1`, and leaves the old configuration as a residual DPKG
+record without force or purge.
+
+The reviewed `mote-chatd 2.0.0-4/2.0.0-6` retirement now names exact
+`uchatd 0.5.0-1` as its successor. An already installed Redis-backed uchatd
+satisfies the replacement check, so the obsolete package is retired without
+reinstalling an unrelated transport component.
+
+Agent Sphere 0.3.0-35 verifies that the running local SSH server proves possession
 of the ED25519 host identity available for MoteD registration. The installer
 validates the default public host key and completes a pinned, unauthenticated
 OpenSSH key exchange on 127.0.0.1:22 before reporting SSH readiness.

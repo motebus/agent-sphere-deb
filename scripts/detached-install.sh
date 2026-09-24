@@ -13,7 +13,7 @@ JOB_PLATFORM
 }
 
 agentsphere_run_detached() {
-    local stage worker_guard worker_obsidian unit result code count state argument
+    local stage worker_guard worker_obsidian worker_transition unit result code count state argument
     stage=$job_stage
     [[ $stage =~ ^/var/lib/agpc-install\.[A-Za-z0-9]{8}$ ]] || return 1
     python3 - "$stage" <<'AGPC_STAGE' || return
@@ -24,10 +24,16 @@ assert not os.listdir(sys.argv[1])
 AGPC_STAGE
     worker_guard=$stage/guard
     worker_obsidian=$stage/obsidian_1.13.7_amd64.deb
+    worker_transition=
     # The existing temporary inputs are root-owned; copy into the durable root
     # stage so caller exit/cleanup cannot remove inputs from the detached job.
     cp -- "$guard" "$worker_guard" || return
     cp -- "$obsidian" "$worker_obsidian" || return
+    if [[ -n ${retirement_bridge:-} ]]; then
+        worker_transition=$stage/mote-chatd_2.0.0-7_all.deb
+        cp -- "$retirement_bridge" "$worker_transition" || return
+        chmod 0600 "$worker_transition" || return
+    fi
     chmod 0700 "$worker_guard" || return
     chmod 0600 "$worker_obsidian" || return
     write_ssh_readiness_helper > "$stage/ssh-readiness.py" || return
@@ -38,6 +44,7 @@ AGPC_STAGE
         printf 'agpc_chat_user=%q\n' "${agpc_chat_user:-}"
         printf 'agpc_profile=%q\n' "$agpc_profile"
         printf 'uchat_state=%q\n' "$uchat_state"
+        printf 'retirement_bridge=%q\n' "$worker_transition"
         printf 'packages=('
         for argument in "${packages[@]}"; do
             [[ $argument != "$obsidian" ]] || argument=$worker_obsidian
@@ -68,6 +75,11 @@ AGPC_RESULT
 }
 trap finish EXIT
 sha256sum --check --status "$stage/inputs.sha256"
+if [[ -n $retirement_bridge ]]; then
+    phase=chatd-retirement
+    dpkg --unpack "$retirement_bridge"
+    dpkg --configure mote-chatd
+fi
 phase=apt
 apt-get -o "DPkg::Pre-Install-Pkgs::=$guard" \
     -o "DPkg::Tools::Options::$guard::Version=3" \
@@ -124,7 +136,11 @@ phase=complete
 AGPC_WORKER
     } > "$stage/worker" || return
     chmod 0600 "$stage/worker" "$stage/ssh-readiness.py" || return
-    sha256sum "$stage/guard" "$stage/worker" "$stage/ssh-readiness.py" "$worker_obsidian" > "$stage/inputs.sha256" || return
+    if [[ -n $worker_transition ]]; then
+        sha256sum "$stage/guard" "$stage/worker" "$stage/ssh-readiness.py" "$worker_obsidian" "$worker_transition" > "$stage/inputs.sha256" || return
+    else
+        sha256sum "$stage/guard" "$stage/worker" "$stage/ssh-readiness.py" "$worker_obsidian" > "$stage/inputs.sha256" || return
+    fi
     chmod 0600 "$stage/inputs.sha256" || return
     unit=agpc-install-${stage##*.}
     printf 'Installation job: %s\nLog: %s/install.log\nResult: %s/result.json\n' "$unit" "$stage" "$stage"

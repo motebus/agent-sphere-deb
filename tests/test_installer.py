@@ -37,6 +37,9 @@ class InstallerTests(unittest.TestCase):
         end = text.index('# END DETACHED INSTALL SUPPORT\n', start) + len('# END DETACHED INSTALL SUPPORT\n')
         text = text[:start] + '''agentsphere_job_platform_check() { :; }
 agentsphere_run_detached() {
+    if [[ -n ${retirement_bridge:-} ]]; then
+        export APT_TEST_CHATD=$'installed\n2.0.0-7\n /etc/mote/mote-chatd/mote-chatd-mchat.env aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa obsolete'
+    fi
     apt-get -o "DPkg::Pre-Install-Pkgs::=$guard" \\
       -o "DPkg::Tools::Options::$guard::Version=3" \\
       -o "DPkg::Tools::Options::$guard::InfoFD=0" \\
@@ -77,7 +80,12 @@ pathlib.Path(args[args.index('--output')+1]).write_bytes(b'fixture-official-deb'
 import os, sys
 if len(sys.argv) == 2:
     hashes={'prerm':'a583a5e196cab7845800d8bade6cca1b1e86db9d077e2749d24ce7ad3b224085',
-            'postrm':'cad515185035337dd03da926ff380a1cf5a47fd074b6ff7f8525f7d7d1384196'}
+            'postrm':'cad515185035337dd03da926ff380a1cf5a47fd074b6ff7f8525f7d7d1384196',
+            'preinst':'907278cf0b4d3bae73894fd4e85b73513c1f5769a98620d4eb3ef77c44a9ddac'}
+    if os.environ.get('APT_TEST_CHATD','').startswith('installed\\n2.0.0-7'):
+        hashes={'preinst':'907278cf0b4d3bae73894fd4e85b73513c1f5769a98620d4eb3ef77c44a9ddac',
+                'prerm':'31c94985e4d532e677ac3b673a6f6cfa89cd7e986466fdd6c99538a2949f4696',
+                'postrm':'977b560177c7afd78adb5277026a9dbb5dc4ebdad5afdc53f4b1e23dc490511d'}
     if '/cx-node.' in sys.argv[1]:hashes={'prerm':'5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3','postrm':'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}
     print(('0'*64 if os.environ.get('APT_TEST_HOOK') else hashes[sys.argv[1].rsplit('.',1)[-1]])+'  '+sys.argv[1])
 else:
@@ -87,7 +95,8 @@ else:
 """)
         self.write_fake("dpkg-deb", """
 import os, sys
-values={'Package':'obsidian','Version':'1.13.7','Architecture':'amd64'}
+retirement='mote-chatd_2.0.0-7_all.deb' in sys.argv[-2]
+values={'Package':'mote-chatd','Version':'2.0.0-7','Architecture':'all'} if retirement else {'Package':'obsidian','Version':'1.13.7','Architecture':'amd64'}
 print('unexpected' if os.environ.get('APT_TEST_OBSIDIAN') == 'bad-control' else values[sys.argv[-1]])
 """)
         self.write_fake("dpkg-query", """
@@ -107,7 +116,7 @@ if sys.argv[-1] in ('mote-bridge-mcp','sphere-manager'):sys.exit(1)
 if sys.argv[-1] in ('cx-node','cx-agent','codex-mesh'):sys.exit(1)
 value=os.environ.get('APT_TEST_CHATD', '')
 if 'Architecture' in sys.argv[2]:
-    print('amd64\\n'+('deinstall ok config-files' if value.startswith('config-files') else 'install ok installed'))
+    print(('all' if '\\n2.0.0-7\\n' in value else 'amd64')+'\\n'+('deinstall ok config-files' if value.startswith('config-files') else 'install ok installed'))
     sys.exit(0)
 if value == 'query-error':sys.exit(2)
 if not value:sys.exit(1)
@@ -127,7 +136,7 @@ stage = 'update' if args == ['update'] else 'simulate' if '--simulate' in args e
 if os.environ.get('APT_TEST_FAIL') == stage:
     sys.exit(42)
 if stage == 'simulate':
-    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-34 stable)\\nInst contextd (0.1.0-27 stable)'))
+    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-35 stable)\\nInst contextd (0.1.0-27 stable)'))
 if stage == 'install':
     hook = next(a.split('=', 1)[1] for a in args if a.startswith('DPkg::Pre-Install-Pkgs::='))
     assert 'DPkg::Tools::Options::' + hook + '::Version=3' in args
@@ -417,7 +426,7 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:7], ['--simulate','install','agent-sphere=0.3.0-34','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-27','uchatd=0.5.0-1'])
+        self.assertEqual(self.calls()[1][:7], ['--simulate','install','agent-sphere=0.3.0-35','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-27','uchatd=0.5.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][self.calls()[-1].index('install'):], ['install', *self.calls()[1][2:]])
         self.assertIn('--yes', self.calls()[-1])
@@ -486,7 +495,7 @@ print(state)
         result=self.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertNotIn('mote-chatd=2.0.0-6',self.calls()[-1])
-        self.assertIn('mote-chatd-',self.calls()[-1])
+        self.assertNotIn('mote-chatd-',self.calls()[-1])
 
     def test_unknown_ordinary_hook_stops_before_download(self):
         self.env['APT_TEST_CHATD']=self.ordinary_record();self.env['APT_TEST_HOOK']='changed'
@@ -607,7 +616,6 @@ print(state)
         for record in ('query-error', 'installed\\n2.0.0-4', 'config-files\\n2.0.0-4',
                        'half-configured\\n2.0.0-4\\n'+locked,
                        'unpacked\\n2.0.0-6\\n'+locked,
-                       'installed\\n2.0.0-7\\n'+locked,
                        'installed\\n2.0.0-4\\n'+locked+'\\n'+locked,
                        'installed\\n2.0.0-4\\n'+locked+' unexpected'):
             with self.subTest(record=record):

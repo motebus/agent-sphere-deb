@@ -20,13 +20,19 @@ class LegacyDpkgPreflightTests(unittest.TestCase):
         self.query = shutil.which('dpkg-query')
         self.stat = shutil.which('stat')
         self.fixture.write_fake('dpkg-query', f'''
-import subprocess,sys
+import os,subprocess,sys
+if os.environ.get('APT_TEST_CHATD','').startswith('installed\\n2.0.0-7') and sys.argv[-1]=='mote-chatd':
+    if 'Architecture' in sys.argv[2]:print('all\\ninstall ok installed')
+    else:print('installed\\n2.0.0-7\\n /etc/mote/mote-chatd/mote-chatd-mchat.env ' + 'a'*32 + ' obsolete')
+    sys.exit(0)
 sys.exit(subprocess.call([{self.query!r}, {'--admindir='+str(self.root/'var/lib/dpkg')!r}, *sys.argv[1:]]))
 ''')
         self.fixture.write_fake('stat', f'''
 import subprocess,sys
 # Map the unprivileged private-root fixture UID to virtual root.
 if sys.argv[2] == '%u:%a':print('0:640');sys.exit(0)
+if sys.argv[-1].startswith('/var/lib/dpkg/info/'):
+    print('0:0:755:regular file');sys.exit(0)
 assert sys.argv[-1] == {TARGET!r}
 sys.exit(subprocess.call([{self.stat!r}, *sys.argv[1:-1], {str(self.target)!r}]))
 ''')

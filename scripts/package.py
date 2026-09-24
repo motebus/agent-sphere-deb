@@ -19,6 +19,11 @@ TARGET = "usr/lib/systemd/system/agentsphere.target"
 SOURCES = {DOC + "README.md": "README.md", DOC + "copyright": "packaging/copyright", TARGET: "packaging/agentsphere.target"}
 PAYLOAD = set(SOURCES)
 HOOKS = {"postinst", "prerm", "postrm"}
+RETIREMENT = ROOT / "packaging/mote-chatd-retirement"
+RETIREMENT_VERSION = "2.0.0-7"
+RETIREMENT_HOOKS = {"preinst", "prerm", "postrm"}
+RETIREMENT_DOC = "usr/share/doc/mote-chatd/README.Debian"
+RETIREMENT_EPOCH = 1704067200
 
 
 def fields(text):
@@ -43,7 +48,7 @@ def check_control(meta):
     expected = control()
     if meta != expected:
         raise ValueError("package metadata differs from reviewed control")
-    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.3.0-34":
+    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.3.0-35":
         raise ValueError("wrong package identity")
     if set(meta) != {"Package", "Version", "Architecture", "Section", "Priority",
                     "Maintainer", "Homepage", "Depends", "Description"}:
@@ -62,7 +67,7 @@ def archive(path, flag):
     return tarfile.open(fileobj=io.BytesIO(data))
 
 
-def verify(path):
+def verify_agent(path):
     with archive(path, "--ctrl-tarfile") as arc:
         seen = set()
         for member in arc:
@@ -108,6 +113,85 @@ def verify(path):
             raise ValueError("incomplete documentation payload")
 
 
+def verify_retirement(path):
+    with archive(path, "--ctrl-tarfile") as arc:
+        seen = set()
+        for member in arc:
+            name = member.name.removeprefix("./").rstrip("/")
+            if member.isdir():
+                if name not in {"", "."} or member.mode != 0o755:
+                    raise ValueError("unexpected retirement control directory")
+                continue
+            if member.uid != 0 or member.gid != 0 or not member.isfile() or name in seen:
+                raise ValueError("unsafe retirement control member")
+            if name == "control":
+                meta = fields(arc.extractfile(member).read().decode())
+                expected = fields((RETIREMENT / "control").read_text())
+                if meta != expected or meta["Package"] != "mote-chatd" or meta["Version"] != RETIREMENT_VERSION:
+                    raise ValueError("retirement package identity differs")
+                if set(meta) != {"Package", "Version", "Architecture", "Section", "Priority",
+                                 "Maintainer", "Homepage", "Depends", "Description"}:
+                    raise ValueError("unexpected retirement control fields")
+            elif name in RETIREMENT_HOOKS:
+                if member.mode != 0o755 or arc.extractfile(member).read() != (RETIREMENT / name).read_bytes():
+                    raise ValueError("retirement hook differs from reviewed source")
+            else:
+                raise ValueError("unexpected retirement control payload")
+            seen.add(name)
+        if seen != RETIREMENT_HOOKS | {"control"}:
+            raise ValueError("incomplete retirement lifecycle")
+    with archive(path, "--fsys-tarfile") as arc:
+        files = set()
+        allowed = {"", "usr", "usr/share", "usr/share/doc", "usr/share/doc/mote-chatd"}
+        for member in arc:
+            name = member.name.removeprefix("./").rstrip("/")
+            if name == ".": name = ""
+            if member.uid != 0 or member.gid != 0:
+                raise ValueError("retirement payload is not root-owned")
+            if member.isdir():
+                if name not in allowed or member.mode != 0o755:
+                    raise ValueError("unexpected retirement payload directory")
+            elif not member.isfile() or name != RETIREMENT_DOC or member.mode != 0o644 or name in files:
+                raise ValueError("unexpected retirement payload")
+            else:
+                if arc.extractfile(member).read() != (RETIREMENT / "README.Debian").read_bytes():
+                    raise ValueError("retirement documentation differs")
+                files.add(name)
+        if files != {RETIREMENT_DOC}:
+            raise ValueError("missing retirement documentation")
+
+
+def verify(path):
+    package = subprocess.check_output(["dpkg-deb", "-f", str(path), "Package"], text=True).strip()
+    if package == "agent-sphere":
+        verify_agent(path)
+    elif package == "mote-chatd":
+        verify_retirement(path)
+    else:
+        raise ValueError("unknown package identity")
+
+
+def build_retirement(out, epoch):
+    with tempfile.TemporaryDirectory(prefix="mote-chatd-retirement-", dir=ROOT / "build") as tmp:
+        stage = Path(tmp) / "root"
+        (stage / "DEBIAN").mkdir(parents=True)
+        shutil.copyfile(RETIREMENT / "control", stage / "DEBIAN/control")
+        for hook in RETIREMENT_HOOKS:
+            shutil.copyfile(RETIREMENT / hook, stage / "DEBIAN" / hook)
+        doc = stage / RETIREMENT_DOC
+        doc.parent.mkdir(parents=True)
+        shutil.copyfile(RETIREMENT / "README.Debian", doc)
+        for p in [stage, *stage.rglob("*")]:
+            p.chmod(0o755 if p.is_dir() or (p.parent.name == "DEBIAN" and p.name in RETIREMENT_HOOKS) else 0o644)
+            os.utime(p, (epoch, epoch))
+        result = out / f"mote-chatd_{RETIREMENT_VERSION}_all.deb"
+        subprocess.run(["dpkg-deb", "--build", "--root-owner-group", "-Zxz", "-z9",
+                        str(stage), str(result)], check=True,
+                       env={**os.environ, "SOURCE_DATE_EPOCH": str(epoch)})
+    verify_retirement(result)
+    return result
+
+
 def build(out):
     meta = control()
     check_control(meta)
@@ -134,7 +218,10 @@ def build(out):
         subprocess.run(["dpkg-deb", "--build", "--root-owner-group", "-Zxz", "-z9",
                         str(stage), str(result)], check=True,
                        env={**os.environ, "SOURCE_DATE_EPOCH": str(epoch)})
-    verify(result)
+    verify_agent(result)
+    # The bridge is byte-identical across composition releases so the signed
+    # installer can pin its exact public payload before DPKG sees it.
+    build_retirement(out, RETIREMENT_EPOCH)
     return result
 
 
@@ -147,6 +234,8 @@ def manifest(out):
         raise ValueError("release blocked: exact committed-main migration artifacts are required")
     path = out / ("agent-sphere_" + control()["Version"] + "_all.deb")
     verify(path)
+    retirement = out / f"mote-chatd_{RETIREMENT_VERSION}_all.deb"
+    verify(retirement)
     subprocess.run(["python3", str(ROOT / "scripts/embed-installer-support.py")], check=True)
     installer = out / "agpc.sh"
     shutil.copyfile(ROOT / installer.name, installer)
@@ -164,7 +253,7 @@ def manifest(out):
             "status": "composition-prerelease", "sphere_ready_verified": False,
             "source": "https://github.com/motebus/agent-sphere-deb", "source_commit": commit,
             "source_ref": os.environ.get("GITHUB_REF", "local"), "asset": path.name, "sha256": digest(path),
-            "assets": [{"name": p.name, "sha256": digest(p)} for p in [path, installer, full, alias]],
+            "assets": [{"name": p.name, "sha256": digest(p)} for p in [path, retirement, installer, full, alias]],
             "installer_profiles": {"agpc.sh": "standard", "agpc-all.sh": "full", "agent-sphere-apps.sh": "full-compatibility"},
             "build_run": os.environ.get("GITHUB_SERVER_URL", "https://github.com") + "/" +
             os.environ.get("GITHUB_REPOSITORY", "motebus/agent-sphere-deb") + "/actions/runs/" +
@@ -172,7 +261,7 @@ def manifest(out):
             "component_baseline": json.loads((ROOT / "component-baseline.json").read_text())}
     record = out / "release-manifest.json"
     record.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
-    (out / "SHA256SUMS").write_text("".join(digest(p) + "  " + p.name + "\n" for p in [path, installer, full, alias, record]))
+    (out / "SHA256SUMS").write_text("".join(digest(p) + "  " + p.name + "\n" for p in [path, retirement, installer, full, alias, record]))
 
 
 if __name__ == "__main__":

@@ -31,7 +31,7 @@ jobs:
         run: |
           python3 scripts/package.py build
           python3 -m unittest discover -s tests -v
-          bash -n agpc.sh agpc-all.sh agent-sphere-apps.sh
+          bash -n agpc.sh agpc-all.sh agent-sphere-apps.sh uninstall.sh
           python3 scripts/embed-installer-support.py
       - name: Verify direct CX retirement with genuine archives
         run: sudo python3 scripts/check-cx-retirement.py
@@ -74,4 +74,5 @@ jobs:
           cmp agpc.sh dist/agpc.sh
           cmp agpc-all.sh dist/agpc-all.sh
           cmp agent-sphere-apps.sh dist/agent-sphere-apps.sh
+          cmp uninstall.sh dist/uninstall.sh
           gh release create "v${version}" dist/* --target "$GITHUB_SHA" --title "Agent Sphere ${version}" --notes-file RELEASE_NOTES.md --prerelease --latest=false

@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.3.0-41` is the headless core of the native AGPC standard/full
+`agent-sphere 0.3.0-42` is the headless core of the native AGPC standard/full
 installation profiles. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -85,7 +85,7 @@ signed APT and detached-worker checks:
 
 | Installer | Requested packages |
 | --- | --- |
-| `agpc.sh` | Core `0.3.0-41`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchat `3.2.0-7`, uchatd `0.6.0-1` |
+| `agpc.sh` | Core `0.3.0-42`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchat `3.2.0-7`, uchatd `0.6.0-1` |
 | `agpc-all.sh` | Standard plus `agpc-apps 0.3.0-1` |
 
 `contextd` runs inside AGPC. CoD Server (`codd`) stays in the cloud and is not
@@ -290,6 +290,14 @@ and documentation; it does not stop or remove dependency services or data. The h
 full-bundle uninstaller cannot safely remove this composition and must stop
 before mutation. Product removal needs a separately reviewed lifecycle and
 data-preservation plan.
+
+
+To remove the native AGPC product packages while preserving data, then reinstall
+later:
+
+```sh
+curl -fsSL https://motebus.github.io/download/uninstall.sh | sudo bash
+```
 
 ## Verification and readiness
 

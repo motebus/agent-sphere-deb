@@ -82,7 +82,9 @@ if len(sys.argv) == 2:
     hashes={'prerm':'a583a5e196cab7845800d8bade6cca1b1e86db9d077e2749d24ce7ad3b224085',
             'postrm':'cad515185035337dd03da926ff380a1cf5a47fd074b6ff7f8525f7d7d1384196',
             'preinst':'b5f6130b284e010ebe8bc9fd07637b4e24d9bbc4bc1c5c9a58a21b8de8c006eb'}
-    if os.environ.get('APT_TEST_CHATD','').split('\\n',1)[-1].startswith('2.0.0-8'):
+    if os.environ.get('APT_TEST_CHATD','').split('\\n',1)[-1].startswith('2.0.0-7'):
+        hashes={'postrm':'977b560177c7afd78adb5277026a9dbb5dc4ebdad5afdc53f4b1e23dc490511d'}
+    elif os.environ.get('APT_TEST_CHATD','').split('\\n',1)[-1].startswith('2.0.0-8'):
         hashes={'preinst':'b5f6130b284e010ebe8bc9fd07637b4e24d9bbc4bc1c5c9a58a21b8de8c006eb',
                 'prerm':'75d1e13eb0e81354500e83297cf8122a28ab73be609b490c4f10c71515ef99b3',
                 'postrm':'977b560177c7afd78adb5277026a9dbb5dc4ebdad5afdc53f4b1e23dc490511d'}
@@ -120,7 +122,7 @@ if sys.argv[-1] in ('mote-bridge-mcp','sphere-manager'):sys.exit(1)
 if sys.argv[-1] in ('cx-node','cx-agent','codex-mesh'):sys.exit(1)
 value=os.environ.get('APT_TEST_CHATD', '')
 if 'Architecture' in sys.argv[2]:
-    print(('all' if ('\\n2.0.0-8\\n' in value or '\\n2.0.0-9\\n' in value) else 'amd64')+'\\n'+('deinstall ok config-files' if value.startswith('config-files') else 'install ok unpacked' if value.startswith('unpacked') else 'install ok installed'))
+    print(('all' if any('\\n'+v+'\\n' in value for v in ('2.0.0-7','2.0.0-8','2.0.0-9')) else 'amd64')+'\\n'+('deinstall ok config-files' if value.startswith('config-files') else 'install ok unpacked' if value.startswith('unpacked') else 'install ok installed'))
     sys.exit(0)
 if value == 'query-error':sys.exit(2)
 if not value:sys.exit(1)
@@ -140,7 +142,7 @@ stage = 'update' if args == ['update'] else 'simulate' if '--simulate' in args e
 if os.environ.get('APT_TEST_FAIL') == stage:
     sys.exit(42)
 if stage == 'simulate':
-    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-41 stable)\\nInst contextd (0.1.0-27 stable)'))
+    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-42 stable)\\nInst contextd (0.1.0-27 stable)'))
 if stage == 'install':
     hook = next(a.split('=', 1)[1] for a in args if a.startswith('DPkg::Pre-Install-Pkgs::='))
     assert 'DPkg::Tools::Options::' + hook + '::Version=3' in args
@@ -449,7 +451,7 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:8], ['--simulate','install','agent-sphere=0.3.0-41','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-27','uchat=3.2.0-7','uchatd=0.6.0-1'])
+        self.assertEqual(self.calls()[1][:8], ['--simulate','install','agent-sphere=0.3.0-42','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-27','uchat=3.2.0-7','uchatd=0.6.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][self.calls()[-1].index('install'):], ['install', *self.calls()[1][2:]])
         self.assertIn('--yes', self.calls()[-1])
@@ -645,6 +647,28 @@ print(state)
         result=self.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertIn('mote-chatd-',self.calls()[-1])
+
+    def test_exact_residual_2_0_0_7_record_is_removed(self):
+        locked=(' /etc/mote/mote-chatd/mote-chatd-mchat.env '
+                'a9193a2d1b53fc3a4edf56cbc0c2d558 obsolete')
+        self.env['APT_TEST_CHATD']='config-files\n2.0.0-7\n'+locked
+        artifact=self.root/'uchatd.deb';artifact.touch()
+        self.env['APT_TEST_ACTIONS']=(f'uchatd - - none < 0.6.0-1 amd64 none {artifact}\n'
+            'mote-chatd 2.0.0-7 all none > - - none **REMOVE**\n')
+        result=self.run_installer('--yes')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertIn('uchatd=0.6.0-1',self.calls()[-1])
+
+    def test_changed_residual_2_0_0_7_records_stop_before_download(self):
+        prefix='config-files\n2.0.0-7\n /etc/mote/mote-chatd/mote-chatd-mchat.env '
+        for record in (prefix+'0'*32+' obsolete', prefix+'a9193a2d1b53fc3a4edf56cbc0c2d558',
+                       'installed\n2.0.0-7\n'+prefix.split('\n',2)[2]+' obsolete'):
+            with self.subTest(record=record):
+                self.env['APT_TEST_CHATD']=record
+                result=self.run_installer('--yes')
+                self.assertNotEqual(result.returncode,0,result.stderr)
+                self.assertEqual(self.calls(),[])
+                self.assertFalse(Path(str(self.log)+'.download').exists())
 
     def test_unsupported_legacy_records_stop_before_download_or_apt(self):
         locked=' /etc/mote/mote-chatd/mote-chatd-mchat.env ' + 'a'*32 + ' obsolete'

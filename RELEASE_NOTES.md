@@ -1,11 +1,17 @@
-Agent Sphere 0.3.0-41 updates the native client composition to `uchat
-3.2.0-7`. The Inbox TUI leaves one blank line between messages and supports
-line, page, oldest and newest scrolling with the arrow, PgUp/PgDn, Home and End
-keys. `uchatd` remains 0.6.0-1 and its Redis-only storage behavior is unchanged.
+Agent Sphere 0.3.0-42 admits the exact residual `mote-chatd 2.0.0-7`
+state found on previously retired native hosts: `all`, `deinstall ok
+config-files`, the reviewed obsolete conffile record, and the reviewed postrm
+hook. Other 2.0.0-7 states, identities, conffile records and hooks remain
+refused before downloads. The signed APT transaction removes the residual DPKG
+record without reading or changing the protected topology file.
 
-This release retains the `mote-chatd` retirement repair from 0.3.0-40. It
-handles hosts where an AGPC still has `uchatd 0.4.0-2`. The signed 2.0.0-9 transition package
-when an AGPC still has `uchatd 0.4.0-2`. The signed 2.0.0-9 transition package
+This release retains the uChat Inbox improvements from 0.3.0-41. `uchat
+3.2.0-7` leaves one blank line between messages and supports line, page, oldest
+and newest scrolling with the arrow, PgUp/PgDn, Home and End keys. `uchatd`
+remains 0.6.0-1 and its Redis-only storage behavior is unchanged.
+
+It also retains the `mote-chatd` retirement repair from 0.3.0-40. It handles
+hosts where an AGPC still has `uchatd 0.4.0-2`. The signed 2.0.0-9 transition package
 can configure against that reviewed baseline, then the guarded APT transaction
 upgrades `uchatd` to 0.6.0-1 and removes `mote-chatd`. The installer also
 recognizes and recovers the exact `install ok unpacked` 2.0.0-8 state left by

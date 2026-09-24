@@ -48,7 +48,7 @@ def check_control(meta):
     expected = control()
     if meta != expected:
         raise ValueError("package metadata differs from reviewed control")
-    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.3.0-41":
+    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.3.0-42":
         raise ValueError("wrong package identity")
     if set(meta) != {"Package", "Version", "Architecture", "Section", "Priority",
                     "Maintainer", "Homepage", "Depends", "Description"}:
@@ -242,7 +242,8 @@ def manifest(out):
     installer.chmod(0o755)
     full = out / "agpc-all.sh"
     alias = out / "agent-sphere-apps.sh"
-    for script in (full, alias):
+    uninstaller = out / "uninstall.sh"
+    for script in (full, alias, uninstaller):
         shutil.copyfile(ROOT / script.name, script)
         script.chmod(0o755)
     if subprocess.check_output(["git", "-C", str(ROOT), "status", "--porcelain"], text=True).strip():
@@ -253,7 +254,7 @@ def manifest(out):
             "status": "composition-prerelease", "sphere_ready_verified": False,
             "source": "https://github.com/motebus/agent-sphere-deb", "source_commit": commit,
             "source_ref": os.environ.get("GITHUB_REF", "local"), "asset": path.name, "sha256": digest(path),
-            "assets": [{"name": p.name, "sha256": digest(p)} for p in [path, retirement, installer, full, alias]],
+            "assets": [{"name": p.name, "sha256": digest(p)} for p in [path, retirement, installer, full, alias, uninstaller]],
             "installer_profiles": {"agpc.sh": "standard", "agpc-all.sh": "full", "agent-sphere-apps.sh": "full-compatibility"},
             "build_run": os.environ.get("GITHUB_SERVER_URL", "https://github.com") + "/" +
             os.environ.get("GITHUB_REPOSITORY", "motebus/agent-sphere-deb") + "/actions/runs/" +
@@ -261,7 +262,7 @@ def manifest(out):
             "component_baseline": json.loads((ROOT / "component-baseline.json").read_text())}
     record = out / "release-manifest.json"
     record.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
-    (out / "SHA256SUMS").write_text("".join(digest(p) + "  " + p.name + "\n" for p in [path, retirement, installer, full, alias, record]))
+    (out / "SHA256SUMS").write_text("".join(digest(p) + "  " + p.name + "\n" for p in [path, retirement, installer, full, alias, uninstaller, record]))
 
 
 if __name__ == "__main__":

@@ -85,7 +85,7 @@ os.umask(0o022)
 P=pathlib.Path;mode=sys.argv[1];P('/run/mode').write_text(mode)
 profile='full' if mode in ('full-success','full-transition','fresh-full') else 'standard'
 fresh=mode.startswith('fresh-')
-uchat_state='absent' if fresh else 'redis:0.5.0-1'
+uchat_state='absent' if fresh else 'redis:0.6.0-1'
 for name in ('/etc','/run','/var'):P(name).chmod(0o755)
 P('/run/systemd/system').mkdir(parents=True)
 # Service commands are fixtures; UID0 aliases let native install(1) validate
@@ -114,10 +114,10 @@ obsidian=/input/obsidian
 agpc_profile=PROFILE_FIXTURE
 uchat_state=UCHAT_STATE_FIXTURE
 agpc_chat_user=operator
-packages=(agent-sphere=1.0 agent-ultra=1.0 agpc-manager=1.0 contextd=1.0 uchatd=1.0 "$obsidian")
+packages=(agent-sphere=1.0 agent-ultra=1.0 agpc-manager=1.0 contextd=1.0 uchat=1.0 uchatd=1.0 "$obsidian")
 if [[ $agpc_profile == full ]]; then packages+=(agpc-apps=1.0); fi
 if [[ MODE_FIXTURE == full-transition ]]; then packages+=(agent-apps=1.0); fi
-if [[ MODE_FIXTURE == missing-entry ]]; then packages=(agent-sphere=1.0 agent-ultra=1.0 agpc-manager=1.0 uchatd=1.0 "$obsidian"); fi
+if [[ MODE_FIXTURE == missing-entry ]]; then packages=(agent-sphere=1.0 agent-ultra=1.0 agpc-manager=1.0 uchat=1.0 uchatd=1.0 "$obsidian"); fi
 trap 'rm -rf /input' EXIT
 write_ssh_readiness_helper() {
   printf '%s\n' 'import json,pathlib,sys' 'print(json.dumps({"fixture_ssh_state_only":True}))' 'sys.exit(17 if pathlib.Path("/run/mode").read_text()=="ssh-fails" else 0)'
@@ -160,7 +160,7 @@ else:
     if not expected:
         assert result['phase']=='complete'
         package_report=json.loads((stage/'packages.json').read_text())
-        expected_entries={'agent-sphere','agent-ultra','agpc-manager','contextd','uchatd'}
+        expected_entries={'agent-sphere','agent-ultra','agpc-manager','contextd','uchat','uchatd'}
         if profile=='full':expected_entries.add('agpc-apps')
         if mode=='full-transition':expected_entries.add('agent-apps')
         assert package_report['profile']==profile

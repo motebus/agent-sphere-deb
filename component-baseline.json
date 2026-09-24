@@ -1,7 +1,7 @@
 {
   "schema": "agent-sphere-component-baseline/v3",
   "aggregate_repository": "https://github.com/motebus/download",
-  "aggregate_tag": "agent-computer-v0.3.0-41",
+  "aggregate_tag": "agent-computer-v0.3.0-42",
   "artifact_verification_owner": "signed Agent Computer aggregate publication",
   "packages": [
     {
@@ -75,8 +75,13 @@
       "architecture": "amd64"
     },
     {
+      "name": "uchat",
+      "version": "3.2.0-6",
+      "architecture": "amd64"
+    },
+    {
       "name": "uchatd",
-      "version": "0.5.0-1",
+      "version": "0.6.0-1",
       "architecture": "amd64"
     }
   ],

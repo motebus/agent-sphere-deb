@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.3.0-35` is the headless core of the native AGPC standard/full
+`agent-sphere 0.3.0-36` is the headless core of the native AGPC standard/full
 installation profiles. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -40,7 +40,8 @@ Exiting the management UI must not stop the backend or Core.
 | cx-mesh | 2.0.0-1 |
 | cx-loop | 0.1.0-5 |
 | contextd | 0.1.0-27 |
-| uchatd | 0.5.0-1 |
+| uchat | 3.2.0-6 |
+| uchatd | 0.6.0-1 |
 
 There are no `Recommends` or `Suggests`. This metapackage owns composition and
 owns documentation and `agentsphere.target`. Native Debian helpers enable
@@ -51,7 +52,7 @@ lifecycle. Each dependency owns its executable, service and configuration. `mote
 
 This is a composition prerelease. Each dependency remains a real native package
 with its own release and lifecycle. The complete installer requires the matching
-future signed `agent-computer-v0.3.0-41` aggregate; publishing this Core source release
+future signed `agent-computer-v0.3.0-42` aggregate; publishing this Core source release
 alone does not establish fleet or live runtime readiness. Existing published
 tags remain immutable. The reviewed native `contextd` runtime/package is included
 in the matching signed aggregate cohort. MoteD and Mote Proxy host-key package inputs
@@ -84,7 +85,7 @@ signed APT and detached-worker checks:
 
 | Installer | Requested packages |
 | --- | --- |
-| `agpc.sh` | Core `0.3.0-35`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchatd `0.5.0-1` |
+| `agpc.sh` | Core `0.3.0-36`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchat `3.2.0-6`, uchatd `0.6.0-1` |
 | `agpc-all.sh` | Standard plus `agpc-apps 0.3.0-1` |
 
 `contextd` runs inside AGPC. CoD Server (`codd`) stays in the cloud and is not
@@ -100,15 +101,14 @@ an unexpected dependency. The historical `agent-sphere-apps.sh` URL remains a
 compatibility copy of the full entry; it is not a third profile. Both new signed
 installer assets need independent digest/signature readback before publication.
 
-`uchatd 0.5.0` uses durable Redis and rejects runtime SQLite. Before downloads
-and again under APT's lock, both entries reject pre-0.5 or incomplete uchatd
-packages and orphaned Inbox state. Existing SQLite installations must first
-follow the separate uchatd package's offline import/upgrade procedure. This
-installer never copies, deletes or migrates messages. A proven fresh installation
-explicitly provisions the empty Redis store after package verification; every
-existing store retains its identity and is never reinitialized. Package/state
-drift and older chat versions are refused before the transaction. Apps requires
-`uchat >= 3.2.0-5`; Core owns the daemon dependency in both profiles.
+`uchatd 0.6.0` uses durable Redis and fully retires SQLite. Legacy SQLite Inbox
+files are cache, so no import or migration gate remains. The package removes its
+fixed database/WAL/SHM/journal paths and obsolete `database` config key during
+upgrade. A fresh installation or a cache-only pre-0.5 replacement explicitly
+provisions an empty Redis store after package verification; an existing Redis
+store retains its identity and is never reinitialized. Incomplete DPKG state and
+state drift are still refused. Core requires `uchat >= 3.2.0-6` and
+`uchatd >= 0.6.0-1` in both profiles.
 
 The installer acquires the pinned unmodified official Obsidian
 amd64 DEB, verifies its SHA-256 and Debian metadata, and supplies it to the

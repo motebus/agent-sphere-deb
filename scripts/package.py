@@ -13,7 +13,7 @@ import tarfile
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-NAMES = {'mlink', 'mote-proxy', 'model-router', 'cx-mesh', 'mote-mcpd', 'mote-mcp-ultra', 'cx-loop', 'model-llm', 'moted', 'mote-transportd', 'mote-secd', 'agos', 'sphered', 'contextd', 'uchatd'}
+NAMES = {'mlink', 'mote-proxy', 'model-router', 'cx-mesh', 'mote-mcpd', 'mote-mcp-ultra', 'cx-loop', 'model-llm', 'moted', 'mote-transportd', 'mote-secd', 'agos', 'sphered', 'contextd', 'uchat', 'uchatd'}
 DOC = "usr/share/doc/agent-sphere/"
 TARGET = "usr/lib/systemd/system/agentsphere.target"
 SOURCES = {DOC + "README.md": "README.md", DOC + "copyright": "packaging/copyright", TARGET: "packaging/agentsphere.target"}
@@ -48,14 +48,14 @@ def check_control(meta):
     expected = control()
     if meta != expected:
         raise ValueError("package metadata differs from reviewed control")
-    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.3.0-35":
+    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.3.0-36":
         raise ValueError("wrong package identity")
     if set(meta) != {"Package", "Version", "Architecture", "Section", "Priority",
                     "Maintainer", "Homepage", "Depends", "Description"}:
         raise ValueError("unexpected control fields")
     deps = meta["Depends"].split(",")
     matches = [re.fullmatch(r"([a-z][a-z0-9-]*) \(>= ([0-9][0-9A-Za-z.+:~\-]*)\)", d.strip()) for d in deps]
-    if len(deps) != 16 or not all(matches) or {m[1] for m in matches} != NAMES | {"init-system-helpers"}:
+    if len(deps) != 17 or not all(matches) or {m[1] for m in matches} != NAMES | {"init-system-helpers"}:
         raise ValueError("dependency boundary violation")
     baseline = json.loads((ROOT / "component-baseline.json").read_text())
     if {**{p["name"]: p["version"] for p in baseline["packages"]}, **baseline["system_dependencies"]} != {m[1]: m[2] for m in matches}:

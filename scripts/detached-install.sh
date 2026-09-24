@@ -93,7 +93,7 @@ python3 - "$agpc_profile" "${packages[@]}" > "$stage/packages.json" <<'AGPC_PACK
 import json,subprocess,sys
 records=[]
 profile=sys.argv[1]
-required={'agent-sphere','agent-ultra','agpc-manager','contextd','uchatd'}
+required={'agent-sphere','agent-ultra','agpc-manager','contextd','uchat','uchatd'}
 if profile=='full':required.add('agpc-apps')
 elif profile!='standard':sys.exit('Unknown AGPC install profile')
 selected=set()
@@ -111,7 +111,7 @@ AGPC_PACKAGES
 phase=uchat
 # Only a proven fresh installation is eligible for explicit store provisioning.
 # init-store itself refuses a prior identity or any nonempty Redis namespace.
-if [[ $uchat_state == absent ]]; then
+if [[ $uchat_state == absent || $uchat_state == sqlite-cache:* ]]; then
     systemctl stop uchatd.service
     systemctl reset-failed uchatd.service || true
     systemctl start uchatd-redis.service

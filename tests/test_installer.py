@@ -136,7 +136,7 @@ stage = 'update' if args == ['update'] else 'simulate' if '--simulate' in args e
 if os.environ.get('APT_TEST_FAIL') == stage:
     sys.exit(42)
 if stage == 'simulate':
-    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-35 stable)\\nInst contextd (0.1.0-27 stable)'))
+    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-36 stable)\\nInst contextd (0.1.0-27 stable)'))
 if stage == 'install':
     hook = next(a.split('=', 1)[1] for a in args if a.startswith('DPkg::Pre-Install-Pkgs::='))
     assert 'DPkg::Tools::Options::' + hook + '::Version=3' in args
@@ -228,7 +228,8 @@ print(state)
         self.assertEqual(result.returncode,0,result.stderr)
         for args in self.calls()[1:]:
             self.assertIn('contextd=0.1.0-27',args)
-            self.assertIn('uchatd=0.5.0-1',args)
+            self.assertIn('uchat=3.2.0-6',args)
+            self.assertIn('uchatd=0.6.0-1',args)
             self.assertFalse(any(arg.startswith(('agpc-apps=','agent-apps=')) for arg in args))
         self.assertIn('standard packages installed',result.stdout)
 
@@ -277,34 +278,40 @@ print(state)
                 self.assertIn('Refusing container runtime package',result.stderr)
                 self.assertEqual(len(self.calls()),2)
 
-    def test_legacy_uchat_stops_before_download_or_apt(self):
-        for value in ('install ok installed\n0.3.0-4', 'deinstall ok config-files\n0.3.0-4',
-                      'install ok installed\n0.4.0-2', 'install ok unpacked\n0.5.0-1', 'query-error', 'malformed'):
+    def test_sqlite_cache_releases_are_replaceable_without_import(self):
+        for value in ('install ok installed\n0.3.0-4', 'install ok installed\n0.4.0-2'):
+            with self.subTest(value=value):
+                self.env['APT_TEST_UCHAT']=value
+                result=self.run_installer('--yes')
+                self.assertEqual(result.returncode,0,result.stderr)
+                self.assertTrue(Path(str(self.log)+'.download').exists())
+
+    def test_incomplete_uchat_package_state_stops_before_download(self):
+        for value in ('deinstall ok config-files\n0.3.0-4',
+                      'install ok unpacked\n0.6.0-1', 'query-error', 'malformed'):
             with self.subTest(value=value):
                 self.env['APT_TEST_UCHAT']=value
                 result=self.run_installer('--yes')
                 self.assertNotEqual(result.returncode,0)
-                self.assertIn('uChat migration preflight failed',result.stderr)
+                self.assertIn('uChat package preflight failed',result.stderr)
                 self.assertEqual(self.calls(),[])
                 self.assertFalse(Path(str(self.log)+'.download').exists())
 
-    def test_orphaned_uchat_state_is_preserved_and_refused(self):
+    def test_orphaned_sqlite_cache_does_not_block_install(self):
         state=self.root/'uchatd-state';state.mkdir()
         sentinel=state/'inbox.sqlite3';sentinel.write_bytes(b'owner data')
         result=self.run_installer('--yes')
-        self.assertNotEqual(result.returncode,0)
-        self.assertIn('uChat migration preflight failed',result.stderr)
-        self.assertEqual(self.calls(),[])
+        self.assertEqual(result.returncode,0,result.stderr)
         self.assertEqual(sentinel.read_bytes(),b'owner data')
 
     def test_migrated_uchat_allowed_and_late_drift_refused(self):
-        self.env['APT_TEST_UCHAT']='install ok installed\n0.5.0-1'
+        self.env['APT_TEST_UCHAT']='install ok installed\n0.6.0-1'
         result=self.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
         self.env['APT_TEST_FINAL_UCHAT']='install ok installed\n0.3.0-4'
         result=self.run_installer('--yes')
         self.assertNotEqual(result.returncode,0)
-        self.assertIn('uChat migration is required at transaction time',result.stderr)
+        self.assertIn('uChat state changed after preflight',result.stderr)
         self.env['APT_TEST_FINAL_UCHAT']='install ok installed\n0.5.0-2'
         result=self.run_installer('--yes')
         self.assertNotEqual(result.returncode,0)
@@ -426,7 +433,7 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:7], ['--simulate','install','agent-sphere=0.3.0-35','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-27','uchatd=0.5.0-1'])
+        self.assertEqual(self.calls()[1][:8], ['--simulate','install','agent-sphere=0.3.0-36','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-27','uchat=3.2.0-6','uchatd=0.6.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][self.calls()[-1].index('install'):], ['install', *self.calls()[1][2:]])
         self.assertIn('--yes', self.calls()[-1])
@@ -460,7 +467,7 @@ print(state)
 
     def test_ordinary_release_uses_existing_uchatd_replacement_without_retention(self):
         self.env['APT_TEST_CHATD']=self.ordinary_record()
-        self.env['APT_TEST_UCHAT']='install ok installed\n0.5.0-1'
+        self.env['APT_TEST_UCHAT']='install ok installed\n0.6.0-1'
         self.env['APT_TEST_PLAN']='Remv mote-chatd [2.0.0-4]'
         self.env['APT_TEST_ACTIONS']='mote-chatd 2.0.0-4 amd64 none > - - none **REMOVE**\n'
         result=self.run_installer('--yes')

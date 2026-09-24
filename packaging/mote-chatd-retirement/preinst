@@ -6,7 +6,7 @@ target=/etc/mote/mote-chatd/mote-chatd-mchat.env
     echo 'mote-chatd retirement bridge is upgrade-only' >&2
     exit 1
 }
-case "${2-}" in 2.0.0-4|2.0.0-6) ;; *)
+case "${2-}" in 2.0.0-4|2.0.0-6|2.0.0-7) ;; *)
     echo 'mote-chatd retirement bridge requires a reviewed predecessor' >&2
     exit 1 ;;
 esac
@@ -32,9 +32,13 @@ state=$(dpkg-query -W -f='${Status}\n${Version}' uchatd 2>/dev/null) || {
     echo 'mote-chatd retirement requires installed uchatd' >&2
     exit 1
 }
-case "$state" in 'install ok installed
-'0.5.0-1) ;; *)
-    echo 'mote-chatd retirement requires exact uchatd 0.5.0-1' >&2
+case "$state" in
+    'install ok installed
+'0.4.0-2|'install ok installed
+'0.5.0-1|'install ok installed
+'0.6.0-1) ;;
+*)
+    echo 'mote-chatd retirement requires a reviewed installed uchatd baseline' >&2
     exit 1 ;;
 esac
 if [ -d /run/systemd/system ]; then

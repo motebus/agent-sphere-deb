@@ -20,7 +20,7 @@ SOURCES = {DOC + "README.md": "README.md", DOC + "copyright": "packaging/copyrig
 PAYLOAD = set(SOURCES)
 HOOKS = {"postinst", "prerm", "postrm"}
 RETIREMENT = ROOT / "packaging/mote-chatd-retirement"
-RETIREMENT_VERSION = "2.0.0-7"
+RETIREMENT_VERSION = "2.0.0-8"
 RETIREMENT_HOOKS = {"preinst", "prerm", "postrm"}
 RETIREMENT_DOC = "usr/share/doc/mote-chatd/README.Debian"
 RETIREMENT_EPOCH = 1704067200
@@ -48,7 +48,7 @@ def check_control(meta):
     expected = control()
     if meta != expected:
         raise ValueError("package metadata differs from reviewed control")
-    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.3.0-37":
+    if meta["Package"] != "agent-sphere" or meta["Architecture"] != "all" or meta["Version"] != "0.3.0-38":
         raise ValueError("wrong package identity")
     if set(meta) != {"Package", "Version", "Architecture", "Section", "Priority",
                     "Maintainer", "Homepage", "Depends", "Description"}:

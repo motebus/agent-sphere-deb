@@ -30,7 +30,7 @@ AGPC_STAGE
     cp -- "$guard" "$worker_guard" || return
     cp -- "$obsidian" "$worker_obsidian" || return
     if [[ -n ${retirement_bridge:-} ]]; then
-        worker_transition=$stage/mote-chatd_2.0.0-7_all.deb
+        worker_transition=$stage/mote-chatd_2.0.0-8_all.deb
         cp -- "$retirement_bridge" "$worker_transition" || return
         chmod 0600 "$worker_transition" || return
     fi

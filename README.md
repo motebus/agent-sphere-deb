@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.3.0-37` is the headless core of the native AGPC standard/full
+`agent-sphere 0.3.0-38` is the headless core of the native AGPC standard/full
 installation profiles. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -52,7 +52,7 @@ lifecycle. Each dependency owns its executable, service and configuration. `mote
 
 This is a composition prerelease. Each dependency remains a real native package
 with its own release and lifecycle. The complete installer requires the matching
-signed `agent-computer-v0.3.0-44` aggregate; publishing this Core source release
+signed `agent-computer-v0.3.0-45` aggregate; publishing this Core source release
 alone does not establish fleet or live runtime readiness. Existing published
 tags remain immutable. The reviewed native `contextd` runtime/package is included
 in the matching signed aggregate cohort. MoteD and Mote Proxy host-key package inputs
@@ -85,7 +85,7 @@ signed APT and detached-worker checks:
 
 | Installer | Requested packages |
 | --- | --- |
-| `agpc.sh` | Core `0.3.0-37`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchat `3.2.0-6`, uchatd `0.6.0-1` |
+| `agpc.sh` | Core `0.3.0-38`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchat `3.2.0-6`, uchatd `0.6.0-1` |
 | `agpc-all.sh` | Standard plus `agpc-apps 0.3.0-1` |
 
 `contextd` runs inside AGPC. CoD Server (`codd`) stays in the cloud and is not
@@ -199,7 +199,7 @@ requires its own review and does not change the component runtime language polic
 
 `mote-chatd` is retired into native `uchatd`. A reviewed installed package whose
 old removal hook still protects the locked legacy configuration is first
-upgraded to the signed `mote-chatd 2.0.0-7` retirement bridge, then removed in
+upgraded to the signed `mote-chatd 2.0.0-8` retirement bridge, then removed in
 the same durable installation job with the explicit `mote-chatd-` selector.
 The bridge contains no daemon, fresh hosts never install it, the old
 configuration remains a residual DPKG record, and repeated installation is

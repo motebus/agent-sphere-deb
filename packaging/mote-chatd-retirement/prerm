@@ -3,10 +3,13 @@ set -eu
 case "${1-}" in
     remove|deconfigure)
         state=$(dpkg-query -W -f='${Status}\n${Version}' uchatd 2>/dev/null) || exit 1
-        [ "$state" = 'install ok installed
-0.5.0-1' ] || {
-            echo 'mote-chatd retirement requires exact installed uchatd 0.5.0-1' >&2
-            exit 1
-        }
+        case "$state" in
+            'install ok installed
+'0.5.0-1|'install ok installed
+'0.6.0-1) ;;
+        *)
+            echo 'mote-chatd retirement requires a reviewed installed uchatd successor' >&2
+            exit 1 ;;
+        esac
         ;;
 esac

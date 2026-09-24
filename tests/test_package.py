@@ -39,6 +39,18 @@ class PackageTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "committed-main migration artifacts"):
                     package.manifest(source / "dist")
 
+    def test_retirement_bridge_bounds_old_and_successor_uchatd_states(self):
+        preinst = (package.RETIREMENT / "preinst").read_text()
+        prerm = (package.RETIREMENT / "prerm").read_text()
+        self.assertEqual(package.RETIREMENT_VERSION, "2.0.0-8")
+        for version in ("0.4.0-2", "0.5.0-1", "0.6.0-1"):
+            self.assertIn(version, preinst)
+        self.assertNotIn("0.4.0-2", prerm)
+        for version in ("0.5.0-1", "0.6.0-1"):
+            self.assertIn(version, prerm)
+        self.assertEqual(package.fields((package.RETIREMENT / "control").read_text())["Depends"],
+                         "uchatd (>= 0.6.0-1)")
+
     def test_reproducible_build(self):
         with tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:
             first = package.build(Path(tmp) / "first")

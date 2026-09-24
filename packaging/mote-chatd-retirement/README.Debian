@@ -2,6 +2,6 @@ mote-chatd retirement bridge
 ============================
 
 This upgrade-only package contains no daemon. The AGPC installer installs it
-briefly after verifying the legacy DPKG record and native uchatd successor,
+briefly after verifying the legacy DPKG record and an exact reviewed installed uchatd baseline,
 then removes it in the same durable installation job. The locked legacy
 configuration remains a DPKG residual configuration record and is not read.

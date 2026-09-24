@@ -73,7 +73,25 @@ class McpPreflightTests(unittest.TestCase):
             return result
         with mock.patch.object(module.subprocess,'run',side_effect=new_successor):
             self.assertTrue(module.classify().startswith('config-files:'))
+        def residual_successor(args,**kwargs):
+            result=query(args,**kwargs)
+            result.stdout=result.stdout.replace('3.0.0-3|amd64|install ok installed',
+                                                '3.1.0-1|amd64|deinstall ok config-files')
+            return result
+        with mock.patch.object(module.subprocess,'run',side_effect=residual_successor):
+            self.assertTrue(module.classify().startswith('baseline:config-files:'))
         with self.assertRaisesRegex(ValueError,'successor owner'):module.classify()
+
+    def test_obsolete_residual_rejects_other_successor_baselines(self):
+        self.record=self.record.replace('install ok installed','deinstall ok config-files')+' obsolete'
+        for successor in ('3.0.0-3|amd64|deinstall ok config-files',
+                          '3.1.0-1|all|deinstall ok config-files',
+                          '3.1.0-1|amd64|install ok unpacked'):
+            def query(args,**kwargs):
+                value='mote-mcpd: '+module.NORMAL if '-S' in args else (successor if args[-1]=='mote-mcpd' else self.record)
+                return subprocess.CompletedProcess(args,0,value,'')
+            with self.subTest(successor=successor), mock.patch.object(module.subprocess,'run',side_effect=query):
+                with self.assertRaisesRegex(ValueError,'successor owner'):module.classify()
 
     def test_added_cleanup_hook_is_rejected(self):
         with mock.patch.object(module.os.path,'lexists',return_value=True):

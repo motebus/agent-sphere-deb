@@ -136,7 +136,7 @@ stage = 'update' if args == ['update'] else 'simulate' if '--simulate' in args e
 if os.environ.get('APT_TEST_FAIL') == stage:
     sys.exit(42)
 if stage == 'simulate':
-    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-36 stable)\\nInst contextd (0.1.0-27 stable)'))
+    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-37 stable)\\nInst contextd (0.1.0-27 stable)'))
 if stage == 'install':
     hook = next(a.split('=', 1)[1] for a in args if a.startswith('DPkg::Pre-Install-Pkgs::='))
     assert 'DPkg::Tools::Options::' + hook + '::Version=3' in args
@@ -429,11 +429,23 @@ print(state)
         self.env['APT_TEST_ACTIONS']=''
         result=self.run_installer('--yes');self.assertEqual(result.returncode,0,result.stderr)
 
+    def test_residual_successor_baseline_is_installed_without_legacy_removal(self):
+        self.fake_mcp_classifier('baseline:config-files:reviewed')
+        self.env['APT_TEST_PLAN']='Inst mote-mcpd (3.1.0-1 stable)'
+        self.env['APT_TEST_ACTIONS']='mote-mcpd - - none < 3.1.0-1 amd64 none **CONFIGURE**\n'
+        result=self.run_installer('--yes')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertNotIn('mote-bridge-mcp-', self.calls()[1])
+        self.env['APT_TEST_ACTIONS']='mote-bridge-mcp 3.0.0-2 amd64 none > - - none **REMOVE**\n'
+        result=self.run_installer('--yes')
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('removal of mote-bridge-mcp',result.stderr)
+
     def test_default_requires_confirmation_before_noninteractive_worker(self):
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:8], ['--simulate','install','agent-sphere=0.3.0-36','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-27','uchat=3.2.0-6','uchatd=0.6.0-1'])
+        self.assertEqual(self.calls()[1][:8], ['--simulate','install','agent-sphere=0.3.0-37','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-27','uchat=3.2.0-6','uchatd=0.6.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][self.calls()[-1].index('install'):], ['install', *self.calls()[1][2:]])
         self.assertIn('--yes', self.calls()[-1])

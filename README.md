@@ -51,11 +51,11 @@ lifecycle. Each dependency owns its executable, service and configuration. `mote
 
 This is a composition prerelease. Each dependency remains a real native package
 with its own release and lifecycle. The complete installer requires the matching
-future signed `agent-computer-v0.3.0-40` aggregate; publishing this Core source release
+future signed `agent-computer-v0.3.0-41` aggregate; publishing this Core source release
 alone does not establish fleet or live runtime readiness. Existing published
 tags remain immutable. The reviewed native `contextd` runtime/package is included
-in the matching signed aggregate cohort. MoteD and Mote Proxy host-key releases
-remain pending exact-main artifact admission. Publishing a component prerelease
+in the matching signed aggregate cohort. MoteD and Mote Proxy host-key package inputs
+require the admitted exact-main artifacts named in the reviewed aggregate. Publishing a component prerelease
 does not activate the global installer or signed APT cohort; that promotion also
 requires the MoteC registration/resolve service and authorized device/S Channel
 policy. Missing authority remains denied. Older native preview package cohorts

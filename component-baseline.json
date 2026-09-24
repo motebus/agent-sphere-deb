@@ -1,7 +1,7 @@
 {
   "schema": "agent-sphere-component-baseline/v3",
   "aggregate_repository": "https://github.com/motebus/download",
-  "aggregate_tag": "agent-computer-v0.3.0-40",
+  "aggregate_tag": "agent-computer-v0.3.0-41",
   "artifact_verification_owner": "signed Agent Computer aggregate publication",
   "packages": [
     {
@@ -85,8 +85,5 @@
     "init-system-helpers": "1.54"
   },
   "release_status": "target-composition-requires-signed-leaf-artifacts",
-  "pending_native_components": [
-    "moted",
-    "mote-proxy"
-  ]
+  "pending_native_components": []
 }

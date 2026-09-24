@@ -1,4 +1,4 @@
-Agent Sphere 0.3.0-33 verifies that the running local SSH server proves possession
+Agent Sphere 0.3.0-34 verifies that the running local SSH server proves possession
 of the ED25519 host identity available for MoteD registration. The installer
 validates the default public host key and completes a pinned, unauthenticated
 OpenSSH key exchange on 127.0.0.1:22 before reporting SSH readiness.
@@ -12,6 +12,9 @@ OpenSSH key exchange on 127.0.0.1:22 before reporting SSH readiness.
 - The exact installed cx-mesh 2.0.0-2 successor remains admitted when retired
   extension paths are absent and unowned and package metadata matches the
   reviewed native package. Unlisted successors remain refused.
+- Retired mote-chatd 2.0.0-4/2.0.0-6 uses exact uchatd 0.5.0-1 as its
+  successor, including an already installed Redis-backed daemon, while retaining
+  both preflight and APT-lock replacement checks.
 - Core retains contextd 0.1.0-27 and durable Redis-backed uchatd. Full adds
   agpc-apps 0.3.0-1 with the existing agent-apps transition. Existing data and
   configuration are preserved; pre-0.5 uchatd still requires offline migration.

@@ -1,4 +1,10 @@
-Agent Sphere 0.3.0-40 repairs the native `mote-chatd` retirement transaction
+Agent Sphere 0.3.0-41 updates the native client composition to `uchat
+3.2.0-7`. The Inbox TUI leaves one blank line between messages and supports
+line, page, oldest and newest scrolling with the arrow, PgUp/PgDn, Home and End
+keys. `uchatd` remains 0.6.0-1 and its Redis-only storage behavior is unchanged.
+
+This release retains the `mote-chatd` retirement repair from 0.3.0-40. It
+handles hosts where an AGPC still has `uchatd 0.4.0-2`. The signed 2.0.0-9 transition package
 when an AGPC still has `uchatd 0.4.0-2`. The signed 2.0.0-9 transition package
 can configure against that reviewed baseline, then the guarded APT transaction
 upgrades `uchatd` to 0.6.0-1 and removes `mote-chatd`. The installer also
@@ -18,7 +24,7 @@ or 0.6.0-1). The public installer still pins and verifies the Redis-only uchatd
 0.6.0-1 successor in the same durable job.
 
 This release also retains the complete SQLite retirement from 0.3.0-36. Core
-requires `uchat 3.2.0-6` and `uchatd 0.6.0-1`; the daemon package contains no
+requires `uchat 3.2.0-7` and `uchatd 0.6.0-1`; the daemon package contains no
 SQLite importer, runtime dependency, fallback or dual-write path.
 
 Legacy SQLite Inbox files are cache. Upgrade removes the fixed database, WAL,

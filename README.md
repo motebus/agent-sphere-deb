@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.3.0-40` is the headless core of the native AGPC standard/full
+`agent-sphere 0.3.0-41` is the headless core of the native AGPC standard/full
 installation profiles. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -40,7 +40,7 @@ Exiting the management UI must not stop the backend or Core.
 | cx-mesh | 2.0.0-1 |
 | cx-loop | 0.1.0-5 |
 | contextd | 0.1.0-27 |
-| uchat | 3.2.0-6 |
+| uchat | 3.2.0-7 |
 | uchatd | 0.6.0-1 |
 
 There are no `Recommends` or `Suggests`. This metapackage owns composition and
@@ -85,7 +85,7 @@ signed APT and detached-worker checks:
 
 | Installer | Requested packages |
 | --- | --- |
-| `agpc.sh` | Core `0.3.0-40`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchat `3.2.0-6`, uchatd `0.6.0-1` |
+| `agpc.sh` | Core `0.3.0-41`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchat `3.2.0-7`, uchatd `0.6.0-1` |
 | `agpc-all.sh` | Standard plus `agpc-apps 0.3.0-1` |
 
 `contextd` runs inside AGPC. CoD Server (`codd`) stays in the cloud and is not
@@ -107,7 +107,7 @@ fixed database/WAL/SHM/journal paths and obsolete `database` config key during
 upgrade. A fresh installation or a cache-only pre-0.5 replacement explicitly
 provisions an empty Redis store after package verification; an existing Redis
 store retains its identity and is never reinitialized. Incomplete DPKG state and
-state drift are still refused. Core requires `uchat >= 3.2.0-6` and
+state drift are still refused. Core requires `uchat >= 3.2.0-7` and
 `uchatd >= 0.6.0-1` in both profiles.
 
 The installer acquires the pinned unmodified official Obsidian

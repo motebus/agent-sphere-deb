@@ -42,14 +42,14 @@ class PackageTests(unittest.TestCase):
     def test_retirement_bridge_bounds_old_and_successor_uchatd_states(self):
         preinst = (package.RETIREMENT / "preinst").read_text()
         prerm = (package.RETIREMENT / "prerm").read_text()
-        self.assertEqual(package.RETIREMENT_VERSION, "2.0.0-8")
+        self.assertEqual(package.RETIREMENT_VERSION, "2.0.0-9")
         for version in ("0.4.0-2", "0.5.0-1", "0.6.0-1"):
             self.assertIn(version, preinst)
-        self.assertNotIn("0.4.0-2", prerm)
+        self.assertIn("0.4.0-2", prerm)
         for version in ("0.5.0-1", "0.6.0-1"):
             self.assertIn(version, prerm)
         self.assertEqual(package.fields((package.RETIREMENT / "control").read_text())["Depends"],
-                         "uchatd (>= 0.6.0-1)")
+                         "uchatd (>= 0.4.0-2)")
         with tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:
             bridge = package.build_retirement(Path(tmp), package.RETIREMENT_EPOCH)
             digest = package.digest(bridge)

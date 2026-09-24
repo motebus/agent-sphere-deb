@@ -6,7 +6,7 @@ target=/etc/mote/mote-chatd/mote-chatd-mchat.env
     echo 'mote-chatd retirement bridge is upgrade-only' >&2
     exit 1
 }
-case "${2-}" in 2.0.0-4|2.0.0-6|2.0.0-7) ;; *)
+case "${2-}" in 2.0.0-4|2.0.0-6|2.0.0-7|2.0.0-8) ;; *)
     echo 'mote-chatd retirement bridge requires a reviewed predecessor' >&2
     exit 1 ;;
 esac

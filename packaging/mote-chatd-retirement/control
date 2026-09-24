@@ -1,13 +1,14 @@
 Package: mote-chatd
-Version: 2.0.0-8
+Version: 2.0.0-9
 Architecture: all
 Section: oldlibs
 Priority: optional
 Maintainer: MoteBus Engineering <engineering@ypcloud.com>
 Homepage: https://github.com/motebus/agent-sphere-deb
-Depends: uchatd (>= 0.6.0-1)
+Depends: uchatd (>= 0.4.0-2)
 Description: one-transaction bridge for retiring legacy mote-chatd ownership
- This package can only upgrade a reviewed mote-chatd 2.0.0-4, 2.0.0-6 or 2.0.0-7
- installation after native uchatd is installed. It contains no daemon and
+ This package can only upgrade a reviewed mote-chatd 2.0.0-4, 2.0.0-6,
+ 2.0.0-7 or interrupted 2.0.0-8 installation after native uchatd is installed.
+ It contains no daemon and
  exists only so DPKG can retire the old package without deleting its locked
  legacy configuration file.

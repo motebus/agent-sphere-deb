@@ -70,7 +70,7 @@ jobs:
           python3 -c 'import json; p=json.load(open("component-baseline.json")); assert not p.get("pending_native_components"), "Native component artifacts remain required before publication"'
           version=$(sed -n 's/^Version: //p' packaging/control)
           python3 scripts/package.py verify "dist/agent-sphere_${version}_all.deb"
-          python3 scripts/package.py verify "dist/mote-chatd_2.0.0-8_all.deb"
+          python3 scripts/package.py verify "dist/mote-chatd_2.0.0-9_all.deb"
           cmp agpc.sh dist/agpc.sh
           cmp agpc-all.sh dist/agpc-all.sh
           cmp agent-sphere-apps.sh dist/agent-sphere-apps.sh

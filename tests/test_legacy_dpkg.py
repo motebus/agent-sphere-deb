@@ -21,9 +21,11 @@ class LegacyDpkgPreflightTests(unittest.TestCase):
         self.stat = shutil.which('stat')
         self.fixture.write_fake('dpkg-query', f'''
 import os,subprocess,sys
-if os.environ.get('APT_TEST_CHATD','').startswith('installed\\n2.0.0-8') and sys.argv[-1]=='mote-chatd':
+value=os.environ.get('APT_TEST_CHATD','')
+if (value.startswith('installed\\n2.0.0-8') or value.startswith('installed\\n2.0.0-9')) and sys.argv[-1]=='mote-chatd':
+    version=value.splitlines()[1]
     if 'Architecture' in sys.argv[2]:print('all\\ninstall ok installed')
-    else:print('installed\\n2.0.0-8\\n /etc/mote/mote-chatd/mote-chatd-mchat.env ' + 'a'*32 + ' obsolete')
+    else:print('installed\\n'+version+'\\n /etc/mote/mote-chatd/mote-chatd-mchat.env ' + 'a'*32 + ' obsolete')
     sys.exit(0)
 sys.exit(subprocess.call([{self.query!r}, {'--admindir='+str(self.root/'var/lib/dpkg')!r}, *sys.argv[1:]]))
 ''')

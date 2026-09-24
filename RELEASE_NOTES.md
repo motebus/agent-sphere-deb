@@ -1,7 +1,7 @@
-Agent Sphere 0.3.0-31 admits the exact installed `cx-mesh 2.0.0-2` successor
-when verified residual CX and Codex Mesh conffiles retain their expected sole
-ownership. This lets an already upgraded native AGPC continue without a CX
-downgrade or package removal.
+Agent Sphere 0.3.0-32 admits the exact installed `cx-mesh 2.0.0-2` successor
+when the retired Codex Mesh extension paths are absent and unowned, and the
+installed successor metadata exactly matches the reviewed native package. This
+lets an already upgraded native AGPC continue without a CX downgrade.
 
 - agpc.sh requires the native contextd and durable Redis-backed uchatd in Core.
 - agpc-all.sh adds agpc-apps 0.3.0-1, upgrading an installed agent-apps name through its exact dependency transition.

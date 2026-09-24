@@ -35,6 +35,12 @@ class CxPreflightTests(unittest.TestCase):
   self.records['cx-mesh']='1.1.0-1\namd64\ninstall ok installed\n'
   with mock.patch.object(module.subprocess,'run',side_effect=lambda args,**kwargs:subprocess.CompletedProcess(args,0,'cx-mesh: '+args[-1],'')):
    self.assertTrue(module.classify().startswith('cx-node=-,cx-agent=-,codex-mesh=-;'))
+  self.records['cx-mesh']='2.0.0-2\namd64\ninstall ok installed\n'
+  with mock.patch.object(module,'current_cx_paths',return_value=False),mock.patch.object(module.subprocess,'run',side_effect=lambda args,**kwargs:subprocess.CompletedProcess(args,0,'cx-mesh: '+args[-1],'')):
+   self.assertTrue(module.classify().startswith('cx-node=-,cx-agent=-,codex-mesh=-;'))
+  self.records['cx-mesh']='2.0.0-3\namd64\ninstall ok installed\n'
+  with self.assertRaisesRegex(ValueError,'exact installed successor'):module.classify()
+  self.records['cx-mesh']='1.1.0-1\namd64\ninstall ok installed\n'
   with mock.patch.object(module.subprocess,'run',return_value=subprocess.CompletedProcess([],0,'codex-mesh: wrong','')):
    with self.assertRaisesRegex(ValueError,'sole successor'):module.classify()
  def test_custom_unit_or_changed_hook_is_not_hidden_by_version(self):
@@ -72,7 +78,7 @@ class Cx6ObsoleteTests(unittest.TestCase):
   owner='cx-mesh' if args[-1]=='/usr/bin/cx' and 'deinstall' in self.records['cx-node'] else 'cx-node'
   return subprocess.CompletedProcess(args,0,owner+': '+args[-1]+'\n' if args[0]=='dpkg-query' else '', '')
  def test_renamed_successor_preserves_residual_ownership_and_checks_new_files(self):
-  self.records={'cx-node':self.record.replace('install ok installed','deinstall ok config-files'),'cx-mesh':'2.0.0-1\namd64\ninstall ok installed\n'}
+  self.records={'cx-node':self.record.replace('install ok installed','deinstall ok config-files'),'cx-mesh':'2.0.0-2\namd64\ninstall ok installed\n'}
   def account(name):
    if name=='cx-node':raise KeyError(name)
    return types.SimpleNamespace(pw_uid=123,pw_dir='/var/lib/cx-mesh')

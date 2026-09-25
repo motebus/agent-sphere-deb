@@ -107,6 +107,10 @@ print('unexpected' if os.environ.get('APT_TEST_OBSIDIAN') == 'bad-control' else 
 """)
         self.write_fake("dpkg-query", """
 import os, sys
+if sys.argv[-1] == 'mote-mcp-ultra':
+    value=os.environ.get('APT_TEST_ULTRA','')
+    if not value:sys.exit(1)
+    print(value);sys.exit(0)
 if sys.argv[-1] == 'uchatd':
     value=os.environ.get('APT_TEST_UCHAT','')
     if value=='query-error':sys.exit(2)
@@ -142,7 +146,7 @@ stage = 'update' if args == ['update'] else 'simulate' if '--simulate' in args e
 if os.environ.get('APT_TEST_FAIL') == stage:
     sys.exit(42)
 if stage == 'simulate':
-    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-42 stable)\\nInst contextd (0.1.0-27 stable)'))
+    print(os.environ.get('APT_TEST_PLAN', 'Inst agent-sphere (0.3.0-43 stable)\\nInst contextd (0.1.0-27 stable)'))
 if stage == 'install':
     hook = next(a.split('=', 1)[1] for a in args if a.startswith('DPkg::Pre-Install-Pkgs::='))
     assert 'DPkg::Tools::Options::' + hook + '::Version=3' in args
@@ -151,6 +155,7 @@ if stage == 'install':
     final_env=dict(os.environ, APT_HOOK_INFO_FD='0')
     if 'APT_TEST_FINAL_UCHAT' in os.environ:final_env['APT_TEST_UCHAT']=os.environ['APT_TEST_FINAL_UCHAT']
     if 'APT_TEST_FINAL_CHATD' in os.environ:final_env['APT_TEST_CHATD']=os.environ['APT_TEST_FINAL_CHATD']
+    if 'APT_TEST_FINAL_ULTRA' in os.environ:final_env['APT_TEST_ULTRA']=os.environ['APT_TEST_FINAL_ULTRA']
     if 'APT_TEST_FINAL_MCP' in os.environ:final_env['APT_TEST_MCP']=os.environ['APT_TEST_FINAL_MCP']
     if 'APT_TEST_FINAL_CX' in os.environ:final_env['APT_TEST_CX']=os.environ['APT_TEST_FINAL_CX']
     if 'APT_TEST_FINAL_MANAGER' in os.environ:final_env['APT_TEST_MANAGER']=os.environ['APT_TEST_FINAL_MANAGER']
@@ -207,6 +212,8 @@ if stage == 'install':
         self.write_fake('python3', """
 import os,sys
 body=sys.stdin.read()
+if "'mote-mcp-ultra'" in body and 'def classify():' not in body:
+    exec(compile(body,'ultra-fixture','exec'));sys.exit(0)
 assert 'def classify():' in body
 state=(os.environ.get('APT_TEST_MANAGER','absent') if 'MANAGER_PACKAGE =' in body else
        os.environ.get('APT_TEST_CX','absent') if 'MESH_FILES =' in body else os.environ.get('APT_TEST_MCP','absent'))
@@ -400,11 +407,37 @@ print(state)
         result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
         self.assertIn('unreviewed Manager package removal',result.stderr)
 
+    def test_retired_ultra_requires_reviewed_gateway_in_same_transaction(self):
+        self.fake_mcp_classifier('absent')
+        self.env['APT_TEST_ULTRA']='0.2.1-1|amd64|install ok installed\n /etc/mote-mcpd/providers.d/ultra.yaml abc'
+        artifact=self.root/'mote-mcpd.deb';artifact.touch()
+        self.env['APT_TEST_PLAN']='Remv mote-mcp-ultra [0.2.1-1]\nInst mote-mcpd (3.3.0-1 stable)'
+        self.env['APT_TEST_ACTIONS']=(f'mote-mcpd - - none < 3.3.0-1 amd64 none {artifact}\n'
+            'mote-mcp-ultra 0.2.1-1 amd64 none > - - none **REMOVE**\n')
+        result=self.run_installer('--yes');self.assertEqual(result.returncode,0,result.stderr)
+        self.env['APT_TEST_ACTIONS']='mote-mcp-ultra 0.2.1-1 amd64 none > - - none **REMOVE**\n'
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.assertIn('lacks its reviewed replacement',result.stderr)
+
+    def test_ultra_state_drift_is_checked_under_apt_lock(self):
+        self.fake_mcp_classifier('absent')
+        self.env['APT_TEST_ULTRA']='0.2.1-1|amd64|install ok installed'
+        self.env['APT_TEST_FINAL_ULTRA']='0.2.1-2|amd64|install ok installed'
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.assertIn('retired Ultra state changed after preflight',result.stderr)
+
+    def test_unknown_ultra_version_stops_before_download(self):
+        self.fake_mcp_classifier('absent')
+        self.env['APT_TEST_ULTRA']='0.2.1-3|amd64|install ok installed'
+        result=self.run_installer('--yes');self.assertNotEqual(result.returncode,0)
+        self.assertIn('Ultra preflight failed',result.stderr)
+        self.assertEqual(self.calls(),[])
+
     def test_reviewed_mcp_replacement_is_required_in_same_transaction(self):
         self.fake_mcp_classifier()
         artifact=self.root/'mote-mcpd.deb';artifact.touch()
-        self.env['APT_TEST_PLAN']='Remv mote-bridge-mcp [3.0.0-2]\nInst mote-mcpd (3.1.0-1 stable)'
-        self.env['APT_TEST_ACTIONS']=(f'mote-mcpd - - none < 3.1.0-1 amd64 none {artifact}\n'
+        self.env['APT_TEST_PLAN']='Remv mote-bridge-mcp [3.0.0-2]\nInst mote-mcpd (3.3.0-1 stable)'
+        self.env['APT_TEST_ACTIONS']=(f'mote-mcpd - - none < 3.3.0-1 amd64 none {artifact}\n'
             'mote-bridge-mcp 3.0.0-2 amd64 none > - - none **REMOVE**\n')
         result=self.run_installer('--yes');self.assertEqual(result.returncode,0,result.stderr)
         self.env['APT_TEST_ACTIONS']='mote-bridge-mcp 3.0.0-2 amd64 none > - - none **REMOVE**\n'
@@ -437,8 +470,8 @@ print(state)
 
     def test_residual_successor_baseline_is_installed_without_legacy_removal(self):
         self.fake_mcp_classifier('baseline:config-files:reviewed')
-        self.env['APT_TEST_PLAN']='Inst mote-mcpd (3.1.0-1 stable)'
-        self.env['APT_TEST_ACTIONS']='mote-mcpd - - none < 3.1.0-1 amd64 none **CONFIGURE**\n'
+        self.env['APT_TEST_PLAN']='Inst mote-mcpd (3.3.0-1 stable)'
+        self.env['APT_TEST_ACTIONS']='mote-mcpd - - none < 3.3.0-1 amd64 none **CONFIGURE**\n'
         result=self.run_installer('--yes')
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertNotIn('mote-bridge-mcp-', self.calls()[1])
@@ -451,7 +484,7 @@ print(state)
         result = self.run_piped_installer('y')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(self.calls()[0], ['update'])
-        self.assertEqual(self.calls()[1][:8], ['--simulate','install','agent-sphere=0.3.0-42','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-27','uchat=3.2.0-7','uchatd=0.6.0-1'])
+        self.assertEqual(self.calls()[1][:8], ['--simulate','install','agent-sphere=0.3.0-43','agent-ultra=0.1.0-1','agpc-manager=3.3.0-1','contextd=0.1.0-27','uchat=3.2.0-7','uchatd=0.6.0-1'])
         self.assertTrue(self.calls()[1][-1].endswith('/obsidian_1.13.7_amd64.deb'))
         self.assertEqual(self.calls()[-1][self.calls()[-1].index('install'):], ['install', *self.calls()[1][2:]])
         self.assertIn('--yes', self.calls()[-1])

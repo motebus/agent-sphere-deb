@@ -40,12 +40,13 @@ def in_namespace():
     for name, end in [('agentsphere_container_runtime_package','\n}\n'),
                       ('classify_legacy_uchat','\n}\n'), ('classify_legacy_chatd','\n}\n'),
                       ('classify_legacy_mcp','\nMCP_PREFLIGHT\n}\n'),
+                      ('classify_legacy_ultra','\nULTRA_PREFLIGHT\n}\n'),
                       ('classify_legacy_cx','\nCX_PREFLIGHT\n}\n'),
                       ('classify_legacy_manager','\nMANAGER_PREFLIGHT\n}\n')]:
         start=text.index(name+'() {')
         classifier+=text[start:text.index(end,start)+len(end)]
     classifier=classifier.replace('/etc/uchatd', '/tmp/fixture/uchat-config').replace('/var/lib/uchatd', '/tmp/fixture/uchat-state')
-    guard.write_text('#!/bin/bash\nset -euo pipefail\n'+classifier+"expected_legacy_state=absent\nexpected_mcp_state=absent\nexpected_cx_state=absent\nexpected_manager_state=absent\nexpected_uchat_state=absent\n"+text.split("<<'GUARD'\n", 1)[1].split('\nGUARD\n', 1)[0] + '\n')
+    guard.write_text('#!/bin/bash\nset -euo pipefail\n'+classifier+"expected_legacy_state=absent\nexpected_mcp_state=absent\nexpected_ultra_state=absent\nexpected_cx_state=absent\nexpected_manager_state=absent\nexpected_uchat_state=absent\n"+text.split("<<'GUARD'\n", 1)[1].split('\nGUARD\n', 1)[0] + '\n')
     guard.chmod(0o700)
     evidence = []
     for scenario in ('vault-rename', 'unrelated-removal', 'chatd-removal'):

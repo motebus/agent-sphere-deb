@@ -89,8 +89,8 @@ def main():
   body=source.split("cat <<'GUARD'\n",1)[1].split('\nGUARD\n',1)[0]
   container=source.split('agentsphere_container_runtime_package() {\n',1)[1].split('\n}\n',1)[0]
   script='#!/bin/bash\nset -euo pipefail\nagentsphere_container_runtime_package() {\n'+container+'\n}\nclassify_legacy_cx() {\n'+function+'\nCX_PREFLIGHT\n}\n'
-  for component in ['chatd','mcp','manager','uchat']:script+='classify_legacy_'+component+'() { echo absent; }\n'
-  script+='expected_legacy_state=absent\nexpected_mcp_state=absent\nexpected_manager_state=absent\nexpected_uchat_state=absent\nexpected_cx_state='+shlex.quote(expected)+'\n'+body
+  for component in ['chatd','mcp','ultra','manager','uchat']:script+='classify_legacy_'+component+'() { echo absent; }\n'
+  script+='expected_legacy_state=absent\nexpected_mcp_state=absent\nexpected_ultra_state=absent\nexpected_manager_state=absent\nexpected_uchat_state=absent\nexpected_cx_state='+shlex.quote(expected)+'\n'+body
   Path('/tmp/production-guard').write_text(script);Path('/tmp/production-guard').chmod(0o700)
   return ['-o','DPkg::Pre-Install-Pkgs::=/tmp/production-guard','-o','DPkg::Tools::Options::/tmp/production-guard::Version=3','-o','DPkg::Tools::Options::/tmp/production-guard::InfoFD=0']
  Path('/tmp/installed-metadata.json').write_text(json.dumps(metadata(),indent=2))

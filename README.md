@@ -1,6 +1,6 @@
 # Agent Sphere
 
-`agent-sphere 0.3.0-42` is the headless core of the native AGPC standard/full
+`agent-sphere 0.3.0-43` is the headless core of the native AGPC standard/full
 installation profiles. It composes Agent intelligence, model execution, CX-Mesh and Mote
 through native APT/DPKG dependencies and systemd services. This is the standard
 installation: Docker, Podman and other container runtimes are not prerequisites.
@@ -31,12 +31,11 @@ Exiting the management UI must not stop the backend or Core.
 | mote-proxy | 2.0.0-9 |
 | mote-transportd | 2.0.0-6 |
 | mlink | 2.1.0-1 |
-| mote-secd | 1.0.0-2 |
+| mote-secd | 1.1.0-1 |
 | agos | 2.1.0-1 |
 | model-router | 0.1.0-1 |
 | model-llm | 0.1.0-3 |
-| mote-mcpd | 3.1.0-1 |
-| mote-mcp-ultra | 0.1.0-1 |
+| mote-mcpd | 3.3.0-1 |
 | cx-mesh | 2.0.0-1 |
 | cx-loop | 0.1.0-5 |
 | contextd | 0.1.0-27 |
@@ -52,7 +51,7 @@ lifecycle. Each dependency owns its executable, service and configuration. `mote
 
 This is a composition prerelease. Each dependency remains a real native package
 with its own release and lifecycle. The complete installer requires the matching
-signed `agent-computer-v0.3.0-46` aggregate; publishing this Core source release
+signed `agent-computer-v0.3.0-54` aggregate; publishing this Core source release
 alone does not establish fleet or live runtime readiness. Existing published
 tags remain immutable. The reviewed native `contextd` runtime/package is included
 in the matching signed aggregate cohort. MoteD and Mote Proxy host-key package inputs
@@ -85,7 +84,7 @@ signed APT and detached-worker checks:
 
 | Installer | Requested packages |
 | --- | --- |
-| `agpc.sh` | Core `0.3.0-42`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchat `3.2.0-7`, uchatd `0.6.0-1` |
+| `agpc.sh` | Core `0.3.0-43`, Ultra `0.1.0-1`, AGPC Manager `3.3.0-1`, contextd `0.1.0-27`, uchat `3.2.0-7`, uchatd `0.6.0-1` |
 | `agpc-all.sh` | Standard plus `agpc-apps 0.3.0-1` |
 
 `contextd` runs inside AGPC. CoD Server (`codd`) stays in the cloud and is not
@@ -352,12 +351,20 @@ the historical 1.1 baseline and guarded 1.2 upgrade without DPKG database edits.
 
 ## MCP clients and CX-Loop
 
-The Core includes the MCP gateway and its Ultra providers. Installing
+The Core includes AGPC gateway `mote-mcpd` and S rights owner `mote-secd`.
+Cloud providers belong to `ultra-mcp-xx` behind `ultra-mcp`. The retired
+standalone `mote-mcp-ultra` is no longer a dependency. Installing
 `mote-mcpd` registers `mote mcp serve` as `mote-mcpd` in
 `/etc/codex/config.toml`, shared by the Codex app, CLI and IDE on that host.
 The package preserves unrelated system settings and user/project overrides.
 Existing clients may need to restart the MCP server after an upgrade.
-Provider installation does not grant access to external services.
+Provider installation does not grant access to external services. S supplies
+rights and local admission enforces them. The bundled installer accepts only
+reviewed amd64 `mote-mcp-ultra` versions 0.1.0-1, 0.2.0-1, 0.2.1-1 and
+0.2.1-2 for removal, rechecks package metadata under the APT lock, and requires
+the exact reviewed `mote-mcpd` 3.3.0-1 archive in the same transaction. Retained
+configuration remains retained; no purge is scheduled. Unknown or partial
+predecessor states stop before package changes.
 
 `cx-loop` contains both the `cx-loop` CLI and `cx-loopd` daemon. Its dependency
 on `uchatd` brings the shared Inbox service into headless Core installations;
